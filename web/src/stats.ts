@@ -547,20 +547,36 @@ export function computeReleaseStats(tags: TagStat[], commits: Commit[]): Release
   return results;
 }
 
+// Mirrors internal/aggregate/language.go's extensionLanguages so byte-size
+// and churn-based language stats agree on names (and therefore on color).
 const EXTENSION_LANGUAGES: Record<string, string> = {
   go: "Go", ts: "TypeScript", tsx: "TypeScript", js: "JavaScript", jsx: "JavaScript", mjs: "JavaScript", cjs: "JavaScript",
-  css: "CSS", scss: "SCSS", less: "Less", html: "HTML", htm: "HTML", md: "Markdown", mdx: "Markdown", json: "JSON",
-  yml: "YAML", yaml: "YAML", toml: "TOML", py: "Python", rb: "Ruby", java: "Java", kt: "Kotlin", kts: "Kotlin",
-  c: "C", h: "C", cpp: "C++", cc: "C++", hpp: "C++", cs: "C#", rs: "Rust", php: "PHP", sh: "Shell", bash: "Shell",
-  sql: "SQL", swift: "Swift", m: "Objective-C", vue: "Vue", xml: "XML", proto: "Protocol Buffers",
+  css: "CSS", scss: "SCSS", sass: "Sass", less: "Less", html: "HTML", htm: "HTML", vue: "Vue", svelte: "Svelte",
+  md: "Markdown", mdx: "Markdown", rst: "reStructuredText", adoc: "AsciiDoc", tex: "TeX",
+  json: "JSON", yml: "YAML", yaml: "YAML", toml: "TOML", ini: "INI", cfg: "INI", properties: "Properties", csv: "CSV",
+  xml: "XML", graphql: "GraphQL", gql: "GraphQL", proto: "Protocol Buffers", tf: "HCL", hcl: "HCL",
+  py: "Python", rb: "Ruby", java: "Java", kt: "Kotlin", kts: "Kotlin", groovy: "Groovy", gradle: "Groovy", scala: "Scala",
+  c: "C", h: "C", cpp: "C++", cc: "C++", cxx: "C++", hpp: "C++", hxx: "C++", cs: "C#", rs: "Rust", php: "PHP",
+  sh: "Shell", bash: "Shell", zsh: "Shell", fish: "Shell", ps1: "PowerShell", psm1: "PowerShell", bat: "Batchfile", cmd: "Batchfile",
+  sql: "SQL", swift: "Swift", m: "Objective-C", mm: "Objective-C++", dart: "Dart", lua: "Lua", pl: "Perl", pm: "Perl",
+  r: "R", jl: "Julia", hs: "Haskell", ex: "Elixir", exs: "Elixir", erl: "Erlang", clj: "Clojure", cljs: "Clojure",
+  fs: "F#", fsx: "F#", ml: "OCaml", mli: "OCaml", nim: "Nim", zig: "Zig", cr: "Crystal", elm: "Elm", sol: "Solidity",
+  vb: "Visual Basic", pas: "Pascal", f90: "Fortran", f95: "Fortran", for: "Fortran", asm: "Assembly", s: "Assembly",
+  vhd: "VHDL", vhdl: "VHDL", v: "Verilog", matlab: "MATLAB", ipynb: "Jupyter Notebook", coffee: "CoffeeScript",
+  pug: "Pug", hbs: "Handlebars", twig: "Twig", vim: "Vim Script", el: "Emacs Lisp", diff: "Diff", patch: "Diff", cmake: "CMake",
+};
+
+const FILENAME_LANGUAGES: Record<string, string> = {
+  dockerfile: "Dockerfile", makefile: "Makefile", gnumakefile: "Makefile", "cmakelists.txt": "CMake",
+  rakefile: "Ruby", gemfile: "Ruby", jenkinsfile: "Groovy",
 };
 
 function languageForPath(path: string): string {
-  const base = path.split("/").pop() ?? path;
-  if (base.toLowerCase() === "dockerfile") return "Dockerfile";
+  const base = (path.split("/").pop() ?? path).toLowerCase();
+  if (FILENAME_LANGUAGES[base]) return FILENAME_LANGUAGES[base];
   const dot = base.lastIndexOf(".");
   if (dot === -1) return "Other";
-  return EXTENSION_LANGUAGES[base.slice(dot + 1).toLowerCase()] ?? "Other";
+  return EXTENSION_LANGUAGES[base.slice(dot + 1)] ?? "Other";
 }
 
 export interface LanguageActivity {
