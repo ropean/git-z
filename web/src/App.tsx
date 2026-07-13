@@ -1,93 +1,274 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RepoData } from "./types";
-import { StatTile } from "./components/StatTile";
-import { CommitTimelineChart } from "./components/CommitTimelineChart";
-import { AuthorLeaderboardChart } from "./components/AuthorLeaderboardChart";
-import { FileChurnChart } from "./components/FileChurnChart";
-import { AuthorTable } from "./components/AuthorTable";
+import {
+  computeAuthorStats,
+  computeCoupling,
+  computeDailyDensity,
+  computeFileStats,
+  computeGrowthTrend,
+  computeKeywords,
+  computeSurvival,
+} from "./stats";
+import { categoricalColor, prefersDark } from "./theme";
+import { Header } from "./components/Header";
+import { NavTabs, type NavItem } from "./components/NavTabs";
+import { TimelineFilterBar } from "./components/TimelineFilterBar";
+import { OverviewSection, computeKpi } from "./components/OverviewSection";
+import { CommitsSection } from "./components/CommitsSection";
+import { ContributorsSection } from "./components/ContributorsSection";
+import { FileHeatSection } from "./components/FileHeatSection";
+import { BranchGraphSection } from "./components/BranchGraphSection";
+import { CouplingSection } from "./components/CouplingSection";
+import { SurvivalSection } from "./components/SurvivalSection";
+import { KeywordsSection } from "./components/KeywordsSection";
+import { CommitDrawer } from "./components/CommitDrawer";
 
-function fmtDateTime(s: string) {
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("zh-CN");
-}
+const DAY_MS = 86400000;
 
-function fmtDate(s: string) {
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("zh-CN");
-}
+const NAV_ITEMS: NavItem[] = [
+  { id: "overview", label: "Overview" },
+  { id: "commits", label: "Commits" },
+  { id: "contributors", label: "Contributors" },
+  { id: "files", label: "File Heat" },
+  { id: "branches", label: "Branch Graph" },
+  { id: "coupling", label: "Coupling" },
+  { id: "survival", label: "Survival" },
+  { id: "keywords", label: "Keywords" },
+];
 
 export function App({ data }: { data: RepoData }) {
-  const stats = useMemo(() => {
-    const totalInsertions = data.commits.reduce((s, c) => s + c.insertions, 0);
-    const totalDeletions = data.commits.reduce((s, c) => s + c.deletions, 0);
-    const dates = data.commits.map((c) => new Date(c.date).getTime()).filter((t) => !Number.isNaN(t));
-    const min = dates.length ? new Date(Math.min(...dates)) : null;
-    const max = dates.length ? new Date(Math.max(...dates)) : null;
-    return {
-      totalInsertions,
-      totalDeletions,
-      dateRange: min && max ? `${fmtDate(min.toISOString())} ~ ${fmtDate(max.toISOString())}` : "-",
-    };
-  }, [data.commits]);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const filterChips: string[] = [];
-  const f = data.filters;
-  if (f.since) filterChips.push(`起始: ${f.since}`);
-  if (f.until) filterChips.push(`截止: ${f.until}`);
-  if (f.authors?.length) filterChips.push(`作者: ${f.authors.join(", ")}`);
-  if (f.allBranches) filterChips.push("全部分支");
-  else if (f.branch) filterChips.push(`分支: ${f.branch}`);
-  if (f.include?.length) filterChips.push(`包含: ${f.include.join(", ")}`);
-  if (f.exclude?.length) filterChips.push(`排除: ${f.exclude.join(", ")}`);
-  if (f.maxCommits) filterChips.push(`最大提交数: ${f.maxCommits}`);
+  const [theme, setTheme] = useState<"light" | "dark">(() => (prefersDark() ? "dark" : "light"));
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+  const dark = theme === "dark";
+
+  const commitTimes = useMemo(() => data.commits.map((c) => new Date(c.date).getTime()).filter((t) => !Number.isNaN(t)), [data.commits]);
+  const minDate = useMemo(() => (commitTimes.length ? new Date(Math.min(...commitTimes)) : new Date()), [commitTimes]);
+  const maxDate = useMemo(() => (commitTimes.length ? new Date(Math.max(...commitTimes)) : new Date()), [commitTimes]);
+
+  const [quickRange, setQuickRange] = useState("90");
+  const [dateFrom, setDateFrom] = useState<Date>(() => new Date(Math.max(minDate.getTime(), maxDate.getTime() - 90 * DAY_MS)));
+  const [dateTo, setDateTo] = useState<Date>(maxDate);
+
+  const [authorFilter, setAuthorFilter] = useState<string | null>(null);
+  const [fileFilter, setFileFilter] = useState("");
+  const [messageFilter, setMessageFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedHash, setSelectedHash] = useState<string | null>(null);
+  const [drawerFileOpen, setDrawerFileOpen] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState("overview");
+  const [page, setPage] = useState(1);
+
+  const jumpTo = useCallback((id: string) => {
+    setActiveSection(id);
+    requestAnimationFrame(() => {
+      const el = scrollRef.current?.querySelector("#sec-" + id);
+      if (el) (el as HTMLElement).scrollIntoView({ block: "start" });
+    });
+  }, []);
+
+  const handleQuickRange = useCallback(
+    (id: string) => {
+      setQuickRange(id);
+      if (id === "all") {
+        setDateFrom(minDate);
+        setDateTo(maxDate);
+      } else {
+        const days = Number(id);
+        const from = new Date(maxDate.getTime() - days * DAY_MS);
+        setDateFrom(from < minDate ? minDate : from);
+        setDateTo(maxDate);
+      }
+      setPage(1);
+    },
+    [minDate, maxDate],
+  );
+
+  const handleCustomFrom = useCallback((iso: string) => {
+    setQuickRange("custom");
+    setDateFrom(new Date(iso + "T00:00:00"));
+    setPage(1);
+  }, []);
+  const handleCustomTo = useCallback((iso: string) => {
+    setQuickRange("custom");
+    setDateTo(new Date(iso + "T23:59:59"));
+    setPage(1);
+  }, []);
+  const handleRangeFrom = useCallback(
+    (dayIndex: number) => {
+      const candidate = new Date(minDate.getTime() + dayIndex * DAY_MS);
+      setQuickRange("custom");
+      setDateFrom(candidate > dateTo ? dateTo : candidate);
+      setPage(1);
+    },
+    [minDate, dateTo],
+  );
+  const handleRangeTo = useCallback(
+    (dayIndex: number) => {
+      const candidate = new Date(minDate.getTime() + dayIndex * DAY_MS);
+      setQuickRange("custom");
+      setDateTo(candidate < dateFrom ? dateFrom : candidate);
+      setPage(1);
+    },
+    [minDate, dateFrom],
+  );
+
+  const hasActiveFilters = !!(authorFilter || fileFilter || messageFilter || searchQuery);
+  const clearFilters = useCallback(() => {
+    setAuthorFilter(null);
+    setFileFilter("");
+    setMessageFilter("");
+    setSearchQuery("");
+    setPage(1);
+  }, []);
+
+  const filteredCommits = useMemo(() => {
+    const fromMs = dateFrom.getTime();
+    const toMs = dateTo.getTime();
+    const fileQ = fileFilter.trim().toLowerCase();
+    const msgQ = messageFilter.trim().toLowerCase();
+    const searchQ = searchQuery.trim().toLowerCase();
+    return data.commits
+      .filter((c) => {
+        const t = new Date(c.date).getTime();
+        if (t < fromMs || t > toMs) return false;
+        if (authorFilter && c.authorName !== authorFilter) return false;
+        if (fileQ && !(c.files ?? []).some((f) => f.path.toLowerCase().includes(fileQ))) return false;
+        if (msgQ && !c.subject.toLowerCase().includes(msgQ)) return false;
+        if (searchQ) {
+          const hit =
+            c.subject.toLowerCase().includes(searchQ) ||
+            c.authorName.toLowerCase().includes(searchQ) ||
+            (c.files ?? []).some((f) => f.path.toLowerCase().includes(searchQ));
+          if (!hit) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [data.commits, dateFrom, dateTo, authorFilter, fileFilter, messageFilter, searchQuery]);
+
+  const density = useMemo(() => computeDailyDensity(data.commits), [data.commits]);
+  const kpi = useMemo(() => computeKpi(filteredCommits), [filteredCommits]);
+  const authorStats = useMemo(() => computeAuthorStats(filteredCommits), [filteredCommits]);
+  const fileStats = useMemo(() => computeFileStats(filteredCommits), [filteredCommits]);
+  const coupling = useMemo(() => computeCoupling(filteredCommits, 12), [filteredCommits]);
+  const growth = useMemo(() => computeGrowthTrend(filteredCommits), [filteredCommits]);
+  const keywords = useMemo(() => computeKeywords(filteredCommits), [filteredCommits]);
+  const survival = useMemo(() => computeSurvival(filteredCommits), [filteredCommits]);
+
+  const allAuthorStats = useMemo(() => computeAuthorStats(data.commits), [data.commits]);
+  const authorColorIndex = useMemo(() => {
+    const m = new Map<string, number>();
+    allAuthorStats.forEach((a, i) => m.set(a.name, i));
+    return m;
+  }, [allAuthorStats]);
+  const authorColor = useCallback((name: string) => categoricalColor(authorColorIndex.get(name) ?? 0, dark), [authorColorIndex, dark]);
+
+  const selectedCommit = useMemo(() => (selectedHash ? data.commits.find((c) => c.hash === selectedHash) ?? null : null), [selectedHash, data.commits]);
+
+  const onSelectAuthor = useCallback(
+    (name: string) => {
+      setAuthorFilter((prev) => (prev === name ? null : name));
+      setPage(1);
+      jumpTo("commits");
+    },
+    [jumpTo],
+  );
+  const onSelectFile = useCallback(
+    (path: string) => {
+      setFileFilter(path);
+      setPage(1);
+      jumpTo("commits");
+    },
+    [jumpTo],
+  );
 
   return (
     <div className="app">
-      <div className="header">
-        <h1>Git 历史可视化报告</h1>
-        <div className="meta">
-          <span>仓库: {data.repoPath}</span>
-          <span>生成时间: {fmtDateTime(data.generatedAt)}</span>
-          {filterChips.map((c) => (
-            <span key={c}>· {c}</span>
-          ))}
-        </div>
-      </div>
-
+      <Header
+        repoName={data.repoPath}
+        searchQuery={searchQuery}
+        onSearchChange={(v) => {
+          setSearchQuery(v);
+          setPage(1);
+        }}
+        theme={theme}
+        onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+      />
+      <NavTabs items={NAV_ITEMS} active={activeSection} onSelect={jumpTo} />
+      <TimelineFilterBar
+        minDate={minDate}
+        maxDate={maxDate}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        quickRange={quickRange}
+        density={density}
+        onQuickRange={handleQuickRange}
+        onCustomFrom={handleCustomFrom}
+        onCustomTo={handleCustomTo}
+        onRangeFrom={handleRangeFrom}
+        onRangeTo={handleRangeTo}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={clearFilters}
+        filteredCount={filteredCommits.length}
+        totalCount={data.commits.length}
+      />
       {data.truncated && (
-        <div className="banner">
-          注意：本报告已按 --max-commits 截断，仅展示最近的部分提交，统计数据基于截断后的子集。
+        <div className="banner" style={{ margin: "8px 20px 0" }}>
+          This report was truncated by --max-commits — only the most recent commits are included, and all stats
+          below are computed from that subset.
         </div>
       )}
-
-      <div className="stat-grid">
-        <StatTile label="提交数" value={String(data.commits.length)} />
-        <StatTile label="作者数" value={String(data.authors.length)} />
-        <StatTile label="涉及文件数" value={String(data.files.length)} />
-        <StatTile label="新增 / 删除行数" value={`+${stats.totalInsertions} / -${stats.totalDeletions}`} />
-        <StatTile label="时间范围" value={stats.dateRange} />
-      </div>
-
-      <div className="card">
-        <h2>提交活跃度</h2>
-        <CommitTimelineChart commits={data.commits} />
-      </div>
-
-      <div className="grid-2">
-        <div className="card">
-          <h2>作者排行（按提交数）</h2>
-          <AuthorLeaderboardChart authors={data.authors} />
+      <div className="body-wrap">
+        <div className="content-area" ref={scrollRef}>
+          <OverviewSection kpi={kpi} growth={growth} dark={dark} />
+          <CommitsSection
+            commits={filteredCommits}
+            authorNames={allAuthorStats.map((a) => a.name)}
+            authorFilter={authorFilter}
+            onAuthorFilterChange={(v) => {
+              setAuthorFilter(v);
+              setPage(1);
+            }}
+            fileFilter={fileFilter}
+            onFileFilterChange={(v) => {
+              setFileFilter(v);
+              setPage(1);
+            }}
+            messageFilter={messageFilter}
+            onMessageFilterChange={(v) => {
+              setMessageFilter(v);
+              setPage(1);
+            }}
+            page={page}
+            onPageChange={setPage}
+            selectedHash={selectedHash}
+            onSelectCommit={(hash) => {
+              setSelectedHash(hash);
+              setDrawerFileOpen(null);
+            }}
+            authorColor={authorColor}
+          />
+          <ContributorsSection authors={authorStats} authorFilter={authorFilter} onSelectAuthor={onSelectAuthor} authorColor={authorColor} />
+          <FileHeatSection files={fileStats} onSelectFile={onSelectFile} />
+          <BranchGraphSection commits={filteredCommits} dark={dark} />
+          <CouplingSection pairs={coupling.pairs} nodes={coupling.nodes} />
+          <SurvivalSection survival={survival} />
+          <KeywordsSection keywords={keywords} />
         </div>
-        <div className="card">
-          <h2>文件变更热度（增删行数）</h2>
-          <FileChurnChart files={data.files} />
-        </div>
       </div>
 
-      <div className="card">
-        <h2>作者明细</h2>
-        <AuthorTable authors={data.authors} />
-      </div>
+      {selectedCommit && (
+        <CommitDrawer
+          commit={selectedCommit}
+          openFile={drawerFileOpen}
+          onToggleFile={(path) => setDrawerFileOpen((prev) => (prev === path ? null : path))}
+          onClose={() => setSelectedHash(null)}
+        />
+      )}
     </div>
   );
 }

@@ -117,8 +117,9 @@ func buildLogArgs(opts Options) []string {
 		"log",
 		"--no-renames",
 		"--numstat",
+		"--source",
 		"--date=iso-strict",
-		"--pretty=format:" + headerMarker + "%H" + fieldSep + "%an" + fieldSep + "%ae" + fieldSep + "%ad" + fieldSep + "%P" + fieldSep + "%s",
+		"--pretty=format:" + headerMarker + "%H" + fieldSep + "%an" + fieldSep + "%ae" + fieldSep + "%ad" + fieldSep + "%P" + fieldSep + "%S" + fieldSep + "%s",
 	}
 	if opts.Since != "" {
 		args = append(args, "--since="+normalizeRelativeDate(opts.Since))
@@ -159,8 +160,8 @@ func normalizeRelativeDate(s string) string {
 
 func parseHeader(line string) (model.Commit, error) {
 	rest := strings.TrimPrefix(line, headerMarker)
-	parts := strings.SplitN(rest, fieldSep, 6)
-	if len(parts) != 6 {
+	parts := strings.SplitN(rest, fieldSep, 7)
+	if len(parts) != 7 {
 		return model.Commit{}, fmt.Errorf("gitlog: malformed commit header: %q", line)
 	}
 	date, err := time.Parse(time.RFC3339, parts[3])
@@ -177,8 +178,19 @@ func parseHeader(line string) (model.Commit, error) {
 		AuthorEmail:  parts[2],
 		Date:         date,
 		ParentHashes: parents,
-		Subject:      parts[5],
+		Branch:       normalizeSourceRef(parts[5]),
+		Subject:      parts[6],
 	}, nil
+}
+
+// normalizeSourceRef strips the refs/heads/ or refs/remotes/ prefix that
+// %S (--source) reports when git log expands --all internally, so the
+// UI sees plain branch names like "main" or "origin/main".
+func normalizeSourceRef(ref string) string {
+	ref = strings.TrimPrefix(ref, "refs/heads/")
+	ref = strings.TrimPrefix(ref, "refs/remotes/")
+	ref = strings.TrimPrefix(ref, "refs/tags/")
+	return ref
 }
 
 // parseNumstat parses one `--numstat` line: "<ins>\t<del>\t<path>".

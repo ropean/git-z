@@ -19,6 +19,7 @@ type Commit struct {
 	AuthorName   string       `json:"authorName"`
 	AuthorEmail  string       `json:"authorEmail"`
 	Date         time.Time    `json:"date"`
+	Branch       string       `json:"branch,omitempty"`
 	Subject      string       `json:"subject"`
 	Files        []FileChange `json:"files"`
 	Insertions   int          `json:"insertions"`

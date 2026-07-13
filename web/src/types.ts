@@ -11,6 +11,7 @@ export interface Commit {
   authorName: string;
   authorEmail: string;
   date: string;
+  branch?: string;
   subject: string;
   files: FileChange[] | null;
   insertions: number;

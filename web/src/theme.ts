@@ -10,6 +10,12 @@ export const sequentialBlue = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256
 // Second sequential hue (aqua), used when two magnitude contexts appear at once.
 export const sequentialAqua = ["#c8ece0", "#8fd6bc", "#4fbd93", "#1baf7a", "#158a5f", "#0f6544", "#0a412b"];
 
+// Status palette (fixed, never themed) — used for additions/deletions.
+export const status = {
+  good: { light: "#0ca30c", dark: "#0ca30c" },
+  critical: { light: "#d03b3b", dark: "#d03b3b" },
+};
+
 export function prefersDark(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 }
@@ -24,3 +30,10 @@ export function chartChrome(dark: boolean) {
   };
 }
 
+// Stable categorical color for the Nth distinct entity (author, branch, ...).
+// Cycles past 8 — acceptable degradation since entity names are always
+// shown as direct labels alongside the color, never color-only identity.
+export function categoricalColor(index: number, dark: boolean): string {
+  const arr = dark ? categorical.dark : categorical.light;
+  return arr[index % arr.length];
+}
