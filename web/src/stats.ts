@@ -476,24 +476,36 @@ function dirPrefix(path: string, depth: number): string {
 
 export interface ChurnMonth {
   month: string;
+  commits: number;
   additions: number;
   deletions: number;
   net: number;
   churn: number;
 }
 
+// Monthly commit/LOC series — doubles as the churn-stability input for the
+// health score and as the source series for Overview sparklines, so there's
+// exactly one place that buckets commits by month.
 export function computeChurnTrend(commits: Commit[]): ChurnMonth[] {
-  const map = new Map<string, { additions: number; deletions: number }>();
+  const map = new Map<string, { commits: number; additions: number; deletions: number }>();
   for (const c of commits) {
     const key = c.date.slice(0, 7);
-    const e = map.get(key) ?? { additions: 0, deletions: 0 };
+    const e = map.get(key) ?? { commits: 0, additions: 0, deletions: 0 };
+    e.commits++;
     e.additions += c.insertions;
     e.deletions += c.deletions;
     map.set(key, e);
   }
   return [...map.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([month, e]) => ({ month, additions: e.additions, deletions: e.deletions, net: e.additions - e.deletions, churn: e.additions + e.deletions }));
+    .map(([month, e]) => ({
+      month,
+      commits: e.commits,
+      additions: e.additions,
+      deletions: e.deletions,
+      net: e.additions - e.deletions,
+      churn: e.additions + e.deletions,
+    }));
 }
 
 export interface ReleaseAgg {
@@ -582,6 +594,63 @@ export interface HealthScore {
   breakdown: HealthBreakdown[];
 }
 
+export interface DocHealth {
+  hasReadme: boolean;
+  hasDocs: boolean;
+  daysSinceTouched: number | null;
+  score: number;
+  detail: string;
+}
+
+const README_RE = /^readme(\.[a-z0-9]+)?$/i;
+const DOCS_DIR_RE = /(^|\/)docs?\//i;
+const DOC_PATH_RE = /^readme(\.[a-z0-9]+)?$|(^|\/)docs?\//i;
+
+// Cheap documentation-presence heuristic: does a README/docs/ exist, and has
+// it been touched recently? Not real doc-coverage analysis — that would
+// require understanding what's undocumented, which needs semantic parsing
+// well beyond a git-log report.
+export function computeDocHealth(tree: string[], commits: Commit[], now: Date): DocHealth {
+  const hasReadme = tree.some((p) => !p.includes("/") && README_RE.test(p));
+  const hasDocs = tree.some((p) => DOCS_DIR_RE.test(p));
+
+  let lastTouchedMs: number | null = null;
+  for (const c of commits) {
+    if (!(c.files ?? []).some((f) => DOC_PATH_RE.test(f.path))) continue;
+    const t = new Date(c.date).getTime();
+    if (lastTouchedMs == null || t > lastTouchedMs) lastTouchedMs = t;
+  }
+  const daysSinceTouched = lastTouchedMs != null ? Math.round((now.getTime() - lastTouchedMs) / DAY_MS) : null;
+
+  let score = (hasReadme ? 50 : 0) + (hasDocs ? 30 : 0);
+  let detail: string;
+  if (!hasReadme && !hasDocs) {
+    detail = "No README or docs/ found";
+  } else {
+    const freshnessBonus = daysSinceTouched == null ? 0 : clampScore(20 - (daysSinceTouched / 180) * 20);
+    score += freshnessBonus;
+    const parts = [hasReadme ? "README present" : "no README", hasDocs ? "docs/ present" : "no docs/"];
+    parts.push(daysSinceTouched != null ? `last touched ${daysSinceTouched}d ago` : "never updated after initial add");
+    detail = parts.join(", ");
+  }
+  return { hasReadme, hasDocs, daysSinceTouched, score: clampScore(score), detail };
+}
+
+export interface TestRatio {
+  testFiles: number;
+  totalFiles: number;
+  ratioPct: number;
+}
+
+const TEST_PATH_RE = /(^|\/)(tests?|__tests__|specs?)(\/|$)|\.(test|spec)\.[^/.]+$|_test\.go$|test_[^/]+\.py$/i;
+
+// File-count-based proxy for "are there tests, roughly proportionate to the
+// codebase" — not real coverage, which would need instrumented test runs.
+export function computeTestRatio(tree: string[]): TestRatio {
+  const testFiles = tree.filter((p) => TEST_PATH_RE.test(p)).length;
+  return { testFiles, totalFiles: tree.length, ratioPct: tree.length ? (testFiles / tree.length) * 100 : 0 };
+}
+
 export interface HealthInput {
   commits: Commit[];
   authorStats: AuthorAgg[];
@@ -589,6 +658,7 @@ export interface HealthInput {
   branchStats: BranchStat[];
   releaseStats: ReleaseAgg[];
   churnTrend: ChurnMonth[];
+  docHealth: DocHealth;
   now: Date;
 }
 
@@ -643,6 +713,8 @@ export function computeHealthScore(input: HealthInput): HealthScore {
     churnScore = clampScore(100 - cv * 40);
   }
   breakdown.push({ label: "Churn stability", score: churnScore, detail: "Last 6 months" });
+
+  breakdown.push({ label: "Documentation", score: input.docHealth.score, detail: input.docHealth.detail });
 
   const overall = clampScore(average(breakdown.map((b) => b.score)));
   return { overall, breakdown };
@@ -709,9 +781,161 @@ export function computeInsights(input: HealthInput & { fileStats: FileAgg[]; hea
     }
   }
 
+  if (!input.docHealth.hasReadme && !input.docHealth.hasDocs) {
+    insights.push({ severity: "info", text: "No README or docs/ directory found — new contributors have nothing to orient from." });
+  } else if (input.docHealth.daysSinceTouched != null && input.docHealth.daysSinceTouched > 180) {
+    insights.push({ severity: "info", text: `Documentation hasn't been touched in ${input.docHealth.daysSinceTouched}d — worth checking it still matches the code.` });
+  }
+
   if (input.health.overall >= 80 && !insights.some((i) => i.severity === "warning")) {
     insights.push({ severity: "good", text: "Repository health looks strong — active, well-distributed, and low churn volatility." });
   }
 
   return insights;
+}
+
+export type Maturity = "New" | "Growing" | "Established" | "Mature";
+
+// Self-descriptive age bucketing — not a claim about how this compares to
+// other repositories, just a label for "how long has this one been around."
+export function classifyMaturity(ageDays: number | null): Maturity {
+  if (ageDays == null) return "New";
+  if (ageDays < 90) return "New";
+  if (ageDays < 365) return "Growing";
+  if (ageDays < 4 * 365) return "Established";
+  return "Mature";
+}
+
+export type ActivityLevel = "Low" | "Medium" | "High";
+
+// Self-relative: compares the selected period's commit rate to this same
+// repository's own historical median monthly rate, never to other repos
+// (we have no cross-repo dataset, and fabricating one would be dishonest).
+export function classifyActivityLevel(currentMonthlyRate: number, historicalMonthly: ChurnMonth[]): ActivityLevel {
+  const rates = historicalMonthly.map((m) => m.commits).sort((a, b) => a - b);
+  const median = rates.length ? rates[Math.floor(rates.length / 2)] : 0;
+  if (median <= 0) return currentMonthlyRate > 0 ? "Medium" : "Low";
+  const ratio = currentMonthlyRate / median;
+  if (ratio < 0.5) return "Low";
+  if (ratio > 1.5) return "High";
+  return "Medium";
+}
+
+export type GrowthDirection = "Growing" | "Stable" | "Shrinking";
+
+// Direction of the last 3 months' net LOC change relative to total churn in
+// that window — a repo can churn a lot while staying net-flat, which reads
+// as "Stable" rather than "Growing."
+export function classifyGrowth(monthly: ChurnMonth[]): GrowthDirection {
+  const recent = monthly.slice(-3);
+  if (recent.length === 0) return "Stable";
+  const netSum = recent.reduce((sum, m) => sum + m.net, 0);
+  const churnSum = recent.reduce((sum, m) => sum + m.churn, 0) || 1;
+  const ratio = netSum / churnSum;
+  if (ratio > 0.1) return "Growing";
+  if (ratio < -0.1) return "Shrinking";
+  return "Stable";
+}
+
+export interface PeriodMetric {
+  current: number;
+  previous: number | null;
+  deltaPct: number | null;
+}
+
+export interface PeriodComparison {
+  commits: PeriodMetric;
+  contributors: PeriodMetric;
+  additions: PeriodMetric;
+  deletions: PeriodMetric;
+}
+
+// Compares the selected [dateFrom, dateTo] window against an equal-length
+// window immediately before it, both drawn from the full (unfiltered by
+// author/file/message/search) commit history — trend deltas describe "the
+// period," not whatever ad-hoc drill-down filter happens to be active.
+export function computePeriodComparison(dateFrom: Date, dateTo: Date, allCommits: Commit[]): PeriodComparison {
+  const rangeMs = Math.max(DAY_MS, dateTo.getTime() - dateFrom.getTime());
+  const prevTo = dateFrom.getTime() - 1;
+  const prevFrom = prevTo - rangeMs;
+
+  const timesMs = allCommits.map((c) => new Date(c.date).getTime());
+  const earliestMs = timesMs.length ? Math.min(...timesMs) : Infinity;
+  const haveEarlierData = earliestMs < dateFrom.getTime();
+
+  const inRange = (t: number, from: number, to: number) => t >= from && t <= to;
+  const current: Commit[] = [];
+  const previous: Commit[] = [];
+  allCommits.forEach((c, i) => {
+    const t = timesMs[i];
+    if (inRange(t, dateFrom.getTime(), dateTo.getTime())) current.push(c);
+    else if (haveEarlierData && inRange(t, prevFrom, prevTo)) previous.push(c);
+  });
+
+  const authorsOf = (list: Commit[]) => new Set(list.map((c) => c.authorEmail || c.authorName)).size;
+  const sumIns = (list: Commit[]) => list.reduce((sum, c) => sum + c.insertions, 0);
+  const sumDel = (list: Commit[]) => list.reduce((sum, c) => sum + c.deletions, 0);
+
+  function metric(currentValue: number, previousValue: number): PeriodMetric {
+    if (!haveEarlierData) return { current: currentValue, previous: null, deltaPct: null };
+    if (previousValue === 0) return { current: currentValue, previous: previousValue, deltaPct: currentValue === 0 ? 0 : null };
+    return { current: currentValue, previous: previousValue, deltaPct: ((currentValue - previousValue) / previousValue) * 100 };
+  }
+
+  return {
+    commits: metric(current.length, previous.length),
+    contributors: metric(authorsOf(current), authorsOf(previous)),
+    additions: metric(sumIns(current), sumIns(previous)),
+    deletions: metric(sumDel(current), sumDel(previous)),
+  };
+}
+
+export interface ExecutiveSummaryInput {
+  repoAgeDays: number | null;
+  maturity: Maturity;
+  totalCommits: number;
+  totalContributors: number;
+  activityLevel: ActivityLevel;
+  growth: GrowthDirection;
+  currentLines: number | null;
+  health: HealthScore;
+  insights: Insight[];
+}
+
+function healthLabel(score: number): string {
+  if (score >= 90) return "excellent";
+  if (score >= 75) return "good";
+  if (score >= 50) return "fair";
+  return "needs attention";
+}
+
+// Rule-based prose summary — there's no LLM at report-generation time (this
+// is a static offline HTML file), so this assembles a few template
+// sentences from data already computed elsewhere, rather than fabricating
+// language-model-style analysis.
+export function generateExecutiveSummary(input: ExecutiveSummaryInput): string {
+  // Thresholds mirror the Age fact card's own label (OverviewSection) so the
+  // summary prose and the exact figure never disagree with each other.
+  const ageText =
+    input.repoAgeDays == null
+      ? ""
+      : input.repoAgeDays < 60
+        ? `${input.repoAgeDays}-day-old`
+        : input.repoAgeDays < 730
+          ? `${Math.round(input.repoAgeDays / 30)}-month-old`
+          : `${(input.repoAgeDays / 365).toFixed(1)}-year-old`;
+
+  const sentences: string[] = [
+    `This is a ${input.maturity.toLowerCase()}${ageText ? `, ${ageText}` : ""} repository with ${input.totalCommits.toLocaleString()} commits from ${input.totalContributors} contributor${input.totalContributors === 1 ? "" : "s"}.`,
+    `Development activity is ${input.activityLevel.toLowerCase()} and the codebase is ${input.growth.toLowerCase()}${input.currentLines != null ? `, currently at ${input.currentLines.toLocaleString()} lines` : ""}.`,
+  ];
+
+  const topWarning = input.insights.find((i) => i.severity === "warning");
+  sentences.push(
+    `Overall health is ${healthLabel(input.health.overall)} (${input.health.overall}/100)${
+      topWarning ? ` — the main thing to watch: ${topWarning.text}` : ", with no major risks currently flagged."
+    }`,
+  );
+
+  return sentences.join(" ");
 }

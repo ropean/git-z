@@ -79,6 +79,9 @@ export interface RepoData {
   remoteUrl?: string;
   currentLines?: number;
   license?: string;
+  repoSizeBytes?: number;
+  largestFilePath?: string;
+  largestFileBytes?: number;
   branches: string[];
   tags: string[];
   commits: Commit[];

@@ -1,22 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RepoData } from "./types";
 import {
+  classifyActivityLevel,
+  classifyGrowth,
+  classifyMaturity,
   computeAuthorStats,
   computeBusFactor,
   computeChurnTrend,
   computeCommitStats,
   computeCoupling,
   computeDirectoryStats,
+  computeDocHealth,
   computeFileStats,
   computeHealthScore,
   computeInsights,
   computeKeywords,
   computeLanguageActivity,
+  computePeriodComparison,
   computeReleaseStats,
   computeSurvival,
+  computeTestRatio,
+  generateExecutiveSummary,
 } from "./stats";
 import { categoricalColor, prefersDark } from "./theme";
 import { formatCompactTimestamp } from "./format";
+import { buildTree, countEntries } from "./tree";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Header } from "./components/Header";
 import { NavTabs, type NavItem } from "./components/NavTabs";
@@ -192,6 +200,9 @@ export function App({ data }: { data: RepoData }) {
   const allBusFactor = useMemo(() => computeBusFactor(allAuthorStats), [allAuthorStats]);
   const allChurnTrend = useMemo(() => computeChurnTrend(data.commits), [data.commits]);
   const releaseStats = useMemo(() => computeReleaseStats(tagStats, data.commits), [tagStats, data.commits]);
+  const docHealth = useMemo(() => computeDocHealth(data.tree, data.commits, now), [data.tree, data.commits, now]);
+  const testRatio = useMemo(() => computeTestRatio(data.tree), [data.tree]);
+  const treeCounts = useMemo(() => countEntries(buildTree(data.tree)), [data.tree]);
   const health = useMemo(
     () =>
       computeHealthScore({
@@ -201,9 +212,10 @@ export function App({ data }: { data: RepoData }) {
         branchStats,
         releaseStats,
         churnTrend: allChurnTrend,
+        docHealth,
         now,
       }),
-    [data.commits, allAuthorStats, allBusFactor, branchStats, releaseStats, allChurnTrend, now],
+    [data.commits, allAuthorStats, allBusFactor, branchStats, releaseStats, allChurnTrend, docHealth, now],
   );
   const insights = useMemo(
     () =>
@@ -214,15 +226,39 @@ export function App({ data }: { data: RepoData }) {
         branchStats,
         releaseStats,
         churnTrend: allChurnTrend,
+        docHealth,
         now,
         fileStats: allFileStats,
         health,
         commitStats: allCommitStats,
       }),
-    [data.commits, allAuthorStats, allBusFactor, branchStats, releaseStats, allChurnTrend, now, allFileStats, health, allCommitStats],
+    [data.commits, allAuthorStats, allBusFactor, branchStats, releaseStats, allChurnTrend, docHealth, now, allFileStats, health, allCommitStats],
+  );
+
+  const ageDays = useMemo(() => (commitTimes.length ? Math.round((now.getTime() - minDate.getTime()) / DAY_MS) : null), [commitTimes.length, minDate, now]);
+  const maturity = useMemo(() => classifyMaturity(ageDays), [ageDays]);
+  const rangeDays = useMemo(() => Math.max(1, (dateTo.getTime() - dateFrom.getTime()) / DAY_MS), [dateFrom, dateTo]);
+  const activityLevel = useMemo(() => classifyActivityLevel(kpi.totalCommits / (rangeDays / 30), allChurnTrend), [kpi.totalCommits, rangeDays, allChurnTrend]);
+  const growth = useMemo(() => classifyGrowth(allChurnTrend), [allChurnTrend]);
+  const periodComparison = useMemo(() => computePeriodComparison(dateFrom, dateTo, data.commits), [dateFrom, dateTo, data.commits]);
+  const executiveSummary = useMemo(
+    () =>
+      generateExecutiveSummary({
+        repoAgeDays: ageDays,
+        maturity,
+        totalCommits: data.commits.length,
+        totalContributors: allAuthorStats.length,
+        activityLevel,
+        growth,
+        currentLines: data.currentLines ?? null,
+        health,
+        insights,
+      }),
+    [ageDays, maturity, data.commits.length, allAuthorStats.length, activityLevel, growth, data.currentLines, health, insights],
   );
 
   const primaryLanguage = languages[0]?.language;
+  const lastReleaseDate = tagStats.length ? [...tagStats].sort((a, b) => b.date.localeCompare(a.date))[0].date : undefined;
   const repoInfo = useMemo(
     () => ({
       totalCommits: data.commits.length,
@@ -235,6 +271,14 @@ export function App({ data }: { data: RepoData }) {
       license: data.license,
       primaryLanguage,
       avgCommitsPerDay: allCommitStats.avgPerDay,
+      defaultBranch: data.filters.branch,
+      lastCommitDate: commitTimes.length ? maxDate : undefined,
+      lastReleaseDate,
+      totalFiles: treeCounts.files,
+      totalDirectories: treeCounts.folders,
+      repoSizeBytes: data.repoSizeBytes,
+      largestFilePath: data.largestFilePath,
+      largestFileBytes: data.largestFileBytes,
     }),
     [
       data.commits.length,
@@ -242,12 +286,20 @@ export function App({ data }: { data: RepoData }) {
       data.currentLines,
       commitTimes.length,
       minDate,
+      maxDate,
       data.branches.length,
       data.tags.length,
       data.remoteUrl,
       data.license,
       primaryLanguage,
       allCommitStats.avgPerDay,
+      data.filters.branch,
+      lastReleaseDate,
+      treeCounts.files,
+      treeCounts.folders,
+      data.repoSizeBytes,
+      data.largestFilePath,
+      data.largestFileBytes,
     ],
   );
   const authorColorIndex = useMemo(() => {
@@ -316,7 +368,20 @@ export function App({ data }: { data: RepoData }) {
       )}
       <div className="body-wrap">
         <div className="content-area" ref={scrollRef}>
-          <OverviewSection kpi={kpi} commits={filteredCommits} repo={repoInfo} health={health} />
+          <OverviewSection
+            kpi={kpi}
+            commits={filteredCommits}
+            repo={repoInfo}
+            health={health}
+            periodComparison={periodComparison}
+            monthlySeries={allChurnTrend}
+            maturity={maturity}
+            activityLevel={activityLevel}
+            growth={growth}
+            executiveSummary={executiveSummary}
+            testRatio={testRatio}
+            docDetail={docHealth.detail}
+          />
           <CommitsSection
             commits={filteredCommits}
             authorNames={allAuthorStats.map((a) => a.name)}

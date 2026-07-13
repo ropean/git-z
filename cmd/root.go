@@ -163,6 +163,13 @@ func runGitViz(c *cobra.Command, args []string) error {
 	data.License = gitlog.DetectLicense(repoPath)
 	if sizes, serr := gitlog.TreeSizes(repoPath, treeRef); serr == nil {
 		data.Languages = aggregate.ComputeLanguages(sizes)
+		for _, s := range sizes {
+			data.RepoSizeBytes += s.Bytes
+			if s.Bytes > data.LargestFileBytes {
+				data.LargestFileBytes = s.Bytes
+				data.LargestFilePath = s.Path
+			}
+		}
 	}
 	if branchStats, berr := gitlog.BranchDetails(repoPath, branch, branches); berr == nil {
 		data.BranchStats = branchStats

@@ -90,20 +90,23 @@ type Filters struct {
 
 // RepoData is the full payload embedded into the report (HTML or JSON).
 type RepoData struct {
-	GeneratedAt  time.Time      `json:"generatedAt"`
-	RepoPath     string         `json:"repoPath"`
-	RemoteURL    string         `json:"remoteUrl,omitempty"`
-	CurrentLines int            `json:"currentLines,omitempty"`
-	License      string         `json:"license,omitempty"`
-	Branches     []string       `json:"branches"`
-	Tags         []string       `json:"tags"`
-	Commits      []Commit       `json:"commits"`
-	Authors      []AuthorStat   `json:"authors"`
-	Files        []FileStat     `json:"files"`
-	Languages    []LanguageStat `json:"languages,omitempty"`
-	BranchStats  []BranchStat   `json:"branchStats,omitempty"`
-	TagStats     []TagStat      `json:"tagStats,omitempty"`
-	Tree         []string       `json:"tree"`
-	Truncated    bool           `json:"truncated"`
-	Filters      Filters        `json:"filters"`
+	GeneratedAt      time.Time      `json:"generatedAt"`
+	RepoPath         string         `json:"repoPath"`
+	RemoteURL        string         `json:"remoteUrl,omitempty"`
+	CurrentLines     int            `json:"currentLines,omitempty"`
+	License          string         `json:"license,omitempty"`
+	RepoSizeBytes    int64          `json:"repoSizeBytes,omitempty"`
+	LargestFilePath  string         `json:"largestFilePath,omitempty"`
+	LargestFileBytes int64          `json:"largestFileBytes,omitempty"`
+	Branches         []string       `json:"branches"`
+	Tags             []string       `json:"tags"`
+	Commits          []Commit       `json:"commits"`
+	Authors          []AuthorStat   `json:"authors"`
+	Files            []FileStat     `json:"files"`
+	Languages        []LanguageStat `json:"languages,omitempty"`
+	BranchStats      []BranchStat   `json:"branchStats,omitempty"`
+	TagStats         []TagStat      `json:"tagStats,omitempty"`
+	Tree             []string       `json:"tree"`
+	Truncated        bool           `json:"truncated"`
+	Filters          Filters        `json:"filters"`
 }
