@@ -52,6 +52,24 @@ export const sampleData: RepoData = {
   }),
   authors: [],
   files: [],
+  license: "MIT",
+  languages: [
+    { language: "TypeScript", bytes: 82000, files: 24 },
+    { language: "JavaScript", bytes: 41000, files: 9 },
+    { language: "CSS", bytes: 15000, files: 3 },
+    { language: "Markdown", bytes: 6000, files: 2 },
+    { language: "JSON", bytes: 3000, files: 3 },
+  ],
+  branchStats: [
+    { name: "main", lastCommitDate: new Date(start + dayCursor * 86400000).toISOString(), lastCommitHash: "abc0", aheadOfDefault: 0, behindDefault: 0, aheadBehindKnown: true, merged: false, isRemote: false, isDefault: true },
+    { name: "feature/x", lastCommitDate: new Date(start + (dayCursor - 5) * 86400000).toISOString(), lastCommitHash: "abc1", aheadOfDefault: 4, behindDefault: 12, aheadBehindKnown: true, merged: false, isRemote: false, isDefault: false },
+    { name: "feature/stale-thing", lastCommitDate: new Date(start).toISOString(), lastCommitHash: "abc2", aheadOfDefault: 2, behindDefault: 180, aheadBehindKnown: true, merged: false, isRemote: false, isDefault: false },
+  ],
+  tagStats: [
+    { name: "v1.0.0", date: new Date(start + 90 * 86400000).toISOString(), hash: "abc90", annotated: true },
+    { name: "v1.1.0", date: new Date(start + 170 * 86400000).toISOString(), hash: "abc170", annotated: true },
+    { name: "v1.2.0", date: new Date(start + 260 * 86400000).toISOString(), hash: "abc260", annotated: true },
+  ],
   tree: [
     "src/app.ts",
     "src/api.ts",

@@ -46,6 +46,35 @@ type FileStat struct {
 	Deletions  int    `json:"deletions"`
 }
 
+// LanguageStat is the byte-size share of one detected language across the
+// tracked tree at the analyzed ref (same method GitHub's language bar uses).
+type LanguageStat struct {
+	Language string `json:"language"`
+	Bytes    int64  `json:"bytes"`
+	Files    int    `json:"files"`
+}
+
+// BranchStat is per-branch metadata used for branch-health reporting.
+type BranchStat struct {
+	Name             string    `json:"name"`
+	LastCommitDate   time.Time `json:"lastCommitDate"`
+	LastCommitHash   string    `json:"lastCommitHash"`
+	AheadOfDefault   int       `json:"aheadOfDefault"`
+	BehindDefault    int       `json:"behindDefault"`
+	AheadBehindKnown bool      `json:"aheadBehindKnown"`
+	Merged           bool      `json:"merged"`
+	IsRemote         bool      `json:"isRemote"`
+	IsDefault        bool      `json:"isDefault"`
+}
+
+// TagStat is per-tag metadata used for release-cadence reporting.
+type TagStat struct {
+	Name      string    `json:"name"`
+	Date      time.Time `json:"date"`
+	Hash      string    `json:"hash"`
+	Annotated bool      `json:"annotated"`
+}
+
 // Filters records the CLI options that were applied, for display in the report.
 type Filters struct {
 	Since       string   `json:"since,omitempty"`
@@ -61,16 +90,20 @@ type Filters struct {
 
 // RepoData is the full payload embedded into the report (HTML or JSON).
 type RepoData struct {
-	GeneratedAt  time.Time    `json:"generatedAt"`
-	RepoPath     string       `json:"repoPath"`
-	RemoteURL    string       `json:"remoteUrl,omitempty"`
-	CurrentLines int          `json:"currentLines,omitempty"`
-	Branches     []string     `json:"branches"`
-	Tags         []string     `json:"tags"`
-	Commits      []Commit     `json:"commits"`
-	Authors      []AuthorStat `json:"authors"`
-	Files        []FileStat   `json:"files"`
-	Tree         []string     `json:"tree"`
-	Truncated    bool         `json:"truncated"`
-	Filters      Filters      `json:"filters"`
+	GeneratedAt  time.Time      `json:"generatedAt"`
+	RepoPath     string         `json:"repoPath"`
+	RemoteURL    string         `json:"remoteUrl,omitempty"`
+	CurrentLines int            `json:"currentLines,omitempty"`
+	License      string         `json:"license,omitempty"`
+	Branches     []string       `json:"branches"`
+	Tags         []string       `json:"tags"`
+	Commits      []Commit       `json:"commits"`
+	Authors      []AuthorStat   `json:"authors"`
+	Files        []FileStat     `json:"files"`
+	Languages    []LanguageStat `json:"languages,omitempty"`
+	BranchStats  []BranchStat   `json:"branchStats,omitempty"`
+	TagStats     []TagStat      `json:"tagStats,omitempty"`
+	Tree         []string       `json:"tree"`
+	Truncated    bool           `json:"truncated"`
+	Filters      Filters        `json:"filters"`
 }

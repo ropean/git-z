@@ -36,6 +36,31 @@ export interface FileStat {
   deletions: number;
 }
 
+export interface LanguageStat {
+  language: string;
+  bytes: number;
+  files: number;
+}
+
+export interface BranchStat {
+  name: string;
+  lastCommitDate: string;
+  lastCommitHash: string;
+  aheadOfDefault: number;
+  behindDefault: number;
+  aheadBehindKnown: boolean;
+  merged: boolean;
+  isRemote: boolean;
+  isDefault: boolean;
+}
+
+export interface TagStat {
+  name: string;
+  date: string;
+  hash: string;
+  annotated: boolean;
+}
+
 export interface Filters {
   since?: string;
   until?: string;
@@ -53,11 +78,15 @@ export interface RepoData {
   repoPath: string;
   remoteUrl?: string;
   currentLines?: number;
+  license?: string;
   branches: string[];
   tags: string[];
   commits: Commit[];
   authors: AuthorStat[];
   files: FileStat[];
+  languages?: LanguageStat[];
+  branchStats?: BranchStat[];
+  tagStats?: TagStat[];
   tree: string[];
   truncated: boolean;
   filters: Filters;

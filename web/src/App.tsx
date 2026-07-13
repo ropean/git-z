@@ -2,9 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RepoData } from "./types";
 import {
   computeAuthorStats,
+  computeBusFactor,
+  computeChurnTrend,
+  computeCommitStats,
   computeCoupling,
+  computeDirectoryStats,
   computeFileStats,
+  computeHealthScore,
+  computeInsights,
   computeKeywords,
+  computeLanguageActivity,
+  computeReleaseStats,
   computeSurvival,
 } from "./stats";
 import { categoricalColor, prefersDark } from "./theme";
@@ -15,25 +23,37 @@ import { NavTabs, type NavItem } from "./components/NavTabs";
 import { TimelineFilterBar } from "./components/TimelineFilterBar";
 import { OverviewSection, computeKpi } from "./components/OverviewSection";
 import { ProjectStructureSection } from "./components/ProjectStructureSection";
+import { LanguagesSection } from "./components/LanguagesSection";
+import { DirectoriesSection } from "./components/DirectoriesSection";
 import { CommitsSection } from "./components/CommitsSection";
+import { RhythmSection } from "./components/RhythmSection";
 import { ContributorsSection } from "./components/ContributorsSection";
+import { BranchesSection } from "./components/BranchesSection";
+import { ReleasesSection } from "./components/ReleasesSection";
 import { FileHeatSection } from "./components/FileHeatSection";
 import { CouplingSection } from "./components/CouplingSection";
 import { SurvivalSection } from "./components/SurvivalSection";
 import { KeywordsSection } from "./components/KeywordsSection";
+import { InsightsSection } from "./components/InsightsSection";
 import { CommitDrawer } from "./components/CommitDrawer";
 
 const DAY_MS = 86400000;
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "overview", label: "Overview" },
-  { id: "structure", label: "Structure" },
-  { id: "commits", label: "Commits" },
-  { id: "contributors", label: "Contributors" },
-  { id: "files", label: "File Heat" },
-  { id: "coupling", label: "Coupling" },
-  { id: "survival", label: "Survival" },
-  { id: "keywords", label: "Keywords" },
+  { id: "overview", label: "Overview", group: "Overview" },
+  { id: "commits", label: "Commits", group: "Activity" },
+  { id: "rhythm", label: "Rhythm", group: "Activity" },
+  { id: "structure", label: "Structure", group: "Code" },
+  { id: "languages", label: "Languages", group: "Code" },
+  { id: "directories", label: "Directories", group: "Code" },
+  { id: "files", label: "File Heat", group: "Code" },
+  { id: "coupling", label: "Coupling", group: "Code" },
+  { id: "survival", label: "Survival", group: "Code" },
+  { id: "contributors", label: "Contributors", group: "People" },
+  { id: "branches", label: "Branches", group: "Branches & Releases" },
+  { id: "releases", label: "Releases", group: "Branches & Releases" },
+  { id: "keywords", label: "Keywords", group: "Insights" },
+  { id: "insights", label: "Insights", group: "Insights" },
 ];
 
 export function App({ data }: { data: RepoData }) {
@@ -153,8 +173,56 @@ export function App({ data }: { data: RepoData }) {
   const coupling = useMemo(() => computeCoupling(filteredCommits, 12), [filteredCommits]);
   const keywords = useMemo(() => computeKeywords(filteredCommits), [filteredCommits]);
   const survival = useMemo(() => computeSurvival(filteredCommits), [filteredCommits]);
+  const commitStats = useMemo(() => computeCommitStats(filteredCommits), [filteredCommits]);
+  const busFactor = useMemo(() => computeBusFactor(authorStats), [authorStats]);
+  const directoryStats = useMemo(() => computeDirectoryStats(filteredCommits), [filteredCommits]);
+  const languageActivity = useMemo(() => computeLanguageActivity(filteredCommits), [filteredCommits]);
+
+  const languages = useMemo(() => data.languages ?? [], [data.languages]);
+  const branchStats = useMemo(() => data.branchStats ?? [], [data.branchStats]);
+  const tagStats = useMemo(() => data.tagStats ?? [], [data.tagStats]);
 
   const allAuthorStats = useMemo(() => computeAuthorStats(data.commits), [data.commits]);
+  // Health/Insights and the Branches/Releases tabs describe whole-repo state
+  // (branch/tag data isn't scoped to the date filter to begin with), so they
+  // deliberately use every commit rather than filteredCommits.
+  const now = useMemo(() => new Date(), []);
+  const allFileStats = useMemo(() => computeFileStats(data.commits), [data.commits]);
+  const allCommitStats = useMemo(() => computeCommitStats(data.commits), [data.commits]);
+  const allBusFactor = useMemo(() => computeBusFactor(allAuthorStats), [allAuthorStats]);
+  const allChurnTrend = useMemo(() => computeChurnTrend(data.commits), [data.commits]);
+  const releaseStats = useMemo(() => computeReleaseStats(tagStats, data.commits), [tagStats, data.commits]);
+  const health = useMemo(
+    () =>
+      computeHealthScore({
+        commits: data.commits,
+        authorStats: allAuthorStats,
+        busFactor: allBusFactor,
+        branchStats,
+        releaseStats,
+        churnTrend: allChurnTrend,
+        now,
+      }),
+    [data.commits, allAuthorStats, allBusFactor, branchStats, releaseStats, allChurnTrend, now],
+  );
+  const insights = useMemo(
+    () =>
+      computeInsights({
+        commits: data.commits,
+        authorStats: allAuthorStats,
+        busFactor: allBusFactor,
+        branchStats,
+        releaseStats,
+        churnTrend: allChurnTrend,
+        now,
+        fileStats: allFileStats,
+        health,
+        commitStats: allCommitStats,
+      }),
+    [data.commits, allAuthorStats, allBusFactor, branchStats, releaseStats, allChurnTrend, now, allFileStats, health, allCommitStats],
+  );
+
+  const primaryLanguage = languages[0]?.language;
   const repoInfo = useMemo(
     () => ({
       totalCommits: data.commits.length,
@@ -164,8 +232,23 @@ export function App({ data }: { data: RepoData }) {
       branches: data.branches.length,
       tags: data.tags.length,
       remoteUrl: data.remoteUrl,
+      license: data.license,
+      primaryLanguage,
+      avgCommitsPerDay: allCommitStats.avgPerDay,
     }),
-    [data.commits.length, allAuthorStats.length, data.currentLines, commitTimes.length, minDate, data.branches.length, data.tags.length, data.remoteUrl],
+    [
+      data.commits.length,
+      allAuthorStats.length,
+      data.currentLines,
+      commitTimes.length,
+      minDate,
+      data.branches.length,
+      data.tags.length,
+      data.remoteUrl,
+      data.license,
+      primaryLanguage,
+      allCommitStats.avgPerDay,
+    ],
   );
   const authorColorIndex = useMemo(() => {
     const m = new Map<string, number>();
@@ -185,6 +268,14 @@ export function App({ data }: { data: RepoData }) {
     [jumpTo],
   );
   const onSelectFile = useCallback(
+    (path: string) => {
+      setFileFilter(path);
+      setPage(1);
+      jumpTo("commits");
+    },
+    [jumpTo],
+  );
+  const onSelectDirectory = useCallback(
     (path: string) => {
       setFileFilter(path);
       setPage(1);
@@ -225,8 +316,7 @@ export function App({ data }: { data: RepoData }) {
       )}
       <div className="body-wrap">
         <div className="content-area" ref={scrollRef}>
-          <OverviewSection kpi={kpi} commits={filteredCommits} repo={repoInfo} />
-          <ProjectStructureSection tree={data.tree} />
+          <OverviewSection kpi={kpi} commits={filteredCommits} repo={repoInfo} health={health} />
           <CommitsSection
             commits={filteredCommits}
             authorNames={allAuthorStats.map((a) => a.name)}
@@ -254,11 +344,25 @@ export function App({ data }: { data: RepoData }) {
             }}
             authorColor={authorColor}
           />
-          <ContributorsSection authors={authorStats} authorFilter={authorFilter} onSelectAuthor={onSelectAuthor} authorColor={authorColor} />
+          <RhythmSection commits={filteredCommits} commitStats={commitStats} />
+          <ProjectStructureSection tree={data.tree} />
+          <LanguagesSection languages={languages} activity={languageActivity} dark={dark} />
+          <DirectoriesSection directories={directoryStats} onSelectDirectory={onSelectDirectory} />
           <FileHeatSection files={fileStats} onSelectFile={onSelectFile} />
           <CouplingSection pairs={coupling.pairs} nodes={coupling.nodes} />
           <SurvivalSection survival={survival} />
+          <ContributorsSection
+            authors={authorStats}
+            authorFilter={authorFilter}
+            onSelectAuthor={onSelectAuthor}
+            authorColor={authorColor}
+            busFactor={busFactor}
+            fileStats={fileStats}
+          />
+          <BranchesSection branches={branchStats} />
+          <ReleasesSection releases={releaseStats} />
           <KeywordsSection keywords={keywords} />
+          <InsightsSection health={health} insights={insights} />
         </div>
       </div>
 

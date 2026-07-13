@@ -6,8 +6,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -283,6 +286,228 @@ func Tree(repoPath, ref string) ([]string, error) {
 		return nil, err
 	}
 	return splitNonEmptyLines(out), nil
+}
+
+// TreeSize is one tracked blob's path and byte size at a ref, used to
+// estimate language distribution the same way GitHub's language bar does
+// (by bytes, not by reading and counting lines of every file).
+type TreeSize struct {
+	Path  string
+	Bytes int64
+}
+
+// TreeSizes lists every tracked blob's size in ref's tree via a single
+// `git ls-tree -r -l` call.
+func TreeSizes(repoPath, ref string) ([]TreeSize, error) {
+	out, err := runGit(repoPath, "ls-tree", "-r", "-l", ref)
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(out, "\n")
+	sizes := make([]TreeSize, 0, len(lines))
+	for _, line := range lines {
+		tab := strings.IndexByte(line, '\t')
+		if tab == -1 {
+			continue
+		}
+		meta := strings.Fields(line[:tab])
+		if len(meta) != 4 || meta[1] != "blob" {
+			continue
+		}
+		size, err := strconv.ParseInt(meta[3], 10, 64)
+		if err != nil {
+			continue // "-" for some special objects (e.g. gitlinks)
+		}
+		sizes = append(sizes, TreeSize{Path: line[tab+1:], Bytes: size})
+	}
+	return sizes, nil
+}
+
+// licenseFileNames are checked case-insensitively against the repo root.
+var licenseFileNames = []string{"license", "license.md", "license.txt", "licence", "licence.md", "copying", "copying.md"}
+
+// DetectLicense looks for a well-known license file at the repo root and
+// makes a best-effort guess at which license it is by sniffing common
+// phrases in the first few KB — this is a heuristic, not SPDX detection.
+func DetectLicense(repoPath string) string {
+	entries, err := os.ReadDir(repoPath)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		lower := strings.ToLower(e.Name())
+		for _, cand := range licenseFileNames {
+			if lower == cand {
+				return sniffLicenseName(filepath.Join(repoPath, e.Name()), e.Name())
+			}
+		}
+	}
+	return ""
+}
+
+func sniffLicenseName(path, fallback string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return fallback
+	}
+	defer f.Close()
+	buf := make([]byte, 4000)
+	n, _ := f.Read(buf)
+	text := strings.ToUpper(string(buf[:n]))
+	switch {
+	case strings.Contains(text, "MIT LICENSE"):
+		return "MIT"
+	case strings.Contains(text, "APACHE LICENSE"):
+		return "Apache-2.0"
+	case strings.Contains(text, "GNU GENERAL PUBLIC LICENSE") && strings.Contains(text, "VERSION 3"):
+		return "GPL-3.0"
+	case strings.Contains(text, "GNU GENERAL PUBLIC LICENSE") && strings.Contains(text, "VERSION 2"):
+		return "GPL-2.0"
+	case strings.Contains(text, "GNU LESSER GENERAL PUBLIC LICENSE"):
+		return "LGPL"
+	case strings.Contains(text, "MOZILLA PUBLIC LICENSE"):
+		return "MPL-2.0"
+	case strings.Contains(text, "BSD"):
+		return "BSD"
+	default:
+		return fallback
+	}
+}
+
+// branchRefInfo is the raw per-ref data read from for-each-ref, before
+// merged/ahead-behind enrichment.
+type branchRefInfo struct {
+	fullRef string
+	short   string
+	date    time.Time
+	hash    string
+}
+
+// aheadBehindCap bounds how many branches get a `git rev-list --left-right
+// --count` call (one process spawn each) — a repo with hundreds of stale
+// branches shouldn't make report generation spawn hundreds of git
+// processes. Branches beyond the cap (least recently active) still get
+// name/date/merged data, just no ahead/behind counts.
+const aheadBehindCap = 60
+
+// BranchDetails enriches branchNames (as returned by Branches) with last
+// commit date/hash, merged-into-defaultRef state, and ahead/behind counts
+// relative to defaultRef (capped to the most recently active branches).
+func BranchDetails(repoPath, defaultRef string, branchNames []string) ([]model.BranchStat, error) {
+	out, err := runGit(repoPath, "for-each-ref",
+		"--format=%(refname)"+fieldSep+"%(refname:short)"+fieldSep+"%(committerdate:iso-strict)"+fieldSep+"%(objectname)",
+		"refs/heads", "refs/remotes")
+	if err != nil {
+		return nil, err
+	}
+
+	infos := map[string]branchRefInfo{}
+	for _, line := range splitNonEmptyLines(out) {
+		parts := strings.Split(line, fieldSep)
+		if len(parts) != 4 {
+			continue
+		}
+		d, derr := time.Parse(time.RFC3339, parts[2])
+		if derr != nil {
+			continue
+		}
+		infos[parts[1]] = branchRefInfo{fullRef: parts[0], short: parts[1], date: d, hash: parts[3]}
+	}
+
+	merged := map[string]bool{}
+	if defaultRef != "" {
+		if mergedOut, merr := runGit(repoPath, "branch", "-a", "--format=%(refname:short)", "--merged", defaultRef); merr == nil {
+			for _, name := range splitNonEmptyLines(mergedOut) {
+				merged[strings.TrimPrefix(name, "* ")] = true
+			}
+		}
+	}
+
+	ordered := make([]branchRefInfo, 0, len(branchNames))
+	for _, name := range branchNames {
+		if info, ok := infos[name]; ok {
+			ordered = append(ordered, info)
+		}
+	}
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].date.After(ordered[j].date) })
+
+	stats := make([]model.BranchStat, 0, len(ordered))
+	for i, info := range ordered {
+		bs := model.BranchStat{
+			Name:           info.short,
+			LastCommitDate: info.date,
+			LastCommitHash: info.hash,
+			Merged:         merged[info.short],
+			IsRemote:       strings.HasPrefix(info.fullRef, "refs/remotes/"),
+			IsDefault:      defaultRef != "" && info.short == defaultRef,
+		}
+		switch {
+		case bs.IsDefault:
+			bs.AheadBehindKnown = true
+			bs.Merged = false // trivially "merged into itself" isn't a meaningful status
+		case defaultRef != "" && i < aheadBehindCap:
+			if ahead, behind, aerr := aheadBehindCount(repoPath, defaultRef, info.short); aerr == nil {
+				bs.AheadOfDefault = ahead
+				bs.BehindDefault = behind
+				bs.AheadBehindKnown = true
+			}
+		}
+		stats = append(stats, bs)
+	}
+	return stats, nil
+}
+
+// aheadBehindCount returns how many commits branch has that base doesn't
+// (ahead) and vice versa (behind), via a single symmetric-difference walk.
+func aheadBehindCount(repoPath, base, branch string) (ahead, behind int, err error) {
+	out, err := runGit(repoPath, "rev-list", "--left-right", "--count", base+"..."+branch)
+	if err != nil {
+		return 0, 0, err
+	}
+	parts := strings.Fields(out)
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("unexpected rev-list --left-right output: %q", out)
+	}
+	behind, err1 := strconv.Atoi(parts[0])
+	ahead, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil {
+		return 0, 0, fmt.Errorf("bad rev-list --left-right counts: %q", out)
+	}
+	return ahead, behind, nil
+}
+
+// TagDetails lists every tag with its creation date, target hash, and
+// whether it's an annotated tag object, sorted oldest-first (the order
+// release-cadence bucketing wants).
+func TagDetails(repoPath string) ([]model.TagStat, error) {
+	out, err := runGit(repoPath, "for-each-ref",
+		"--format=%(refname:short)"+fieldSep+"%(creatordate:iso-strict)"+fieldSep+"%(objectname)"+fieldSep+"%(objecttype)",
+		"refs/tags")
+	if err != nil {
+		return nil, err
+	}
+	var stats []model.TagStat
+	for _, line := range splitNonEmptyLines(out) {
+		parts := strings.Split(line, fieldSep)
+		if len(parts) != 4 {
+			continue
+		}
+		d, derr := time.Parse(time.RFC3339, parts[1])
+		if derr != nil {
+			continue
+		}
+		stats = append(stats, model.TagStat{
+			Name:      parts[0],
+			Date:      d,
+			Hash:      parts[2],
+			Annotated: parts[3] == "tag",
+		})
+	}
+	sort.Slice(stats, func(i, j int) bool { return stats[i].Date.Before(stats[j].Date) })
+	return stats, nil
 }
 
 // Show returns the full patch text for a single commit (used by

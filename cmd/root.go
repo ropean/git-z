@@ -160,6 +160,20 @@ func runGitViz(c *cobra.Command, args []string) error {
 	if lines, lerr := gitlog.CurrentLines(repoPath, treeRef); lerr == nil {
 		data.CurrentLines = lines
 	}
+	data.License = gitlog.DetectLicense(repoPath)
+	if sizes, serr := gitlog.TreeSizes(repoPath, treeRef); serr == nil {
+		data.Languages = aggregate.ComputeLanguages(sizes)
+	}
+	if branchStats, berr := gitlog.BranchDetails(repoPath, branch, branches); berr == nil {
+		data.BranchStats = branchStats
+	} else if !flagQuiet {
+		fmt.Fprintf(os.Stderr, "note: couldn't compute branch details: %v\n", berr)
+	}
+	if tagStats, terr := gitlog.TagDetails(repoPath); terr == nil {
+		data.TagStats = tagStats
+	} else if !flagQuiet {
+		fmt.Fprintf(os.Stderr, "note: couldn't compute tag details: %v\n", terr)
+	}
 
 	outputPath := flagOutput
 	if outputPath == "" {

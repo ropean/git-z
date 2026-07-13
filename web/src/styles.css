@@ -343,3 +343,79 @@ tr.commit-row.selected td { background: var(--accent-soft); }
 }
 
 .table-wrap { overflow-x: auto; }
+
+/* ---------- nav groups ---------- */
+.nav-tabs { align-items: center; }
+.nav-group { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.nav-group-label {
+  font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 0 2px 0 8px; white-space: nowrap; user-select: none; flex-shrink: 0;
+}
+.nav-divider { width: 1px; align-self: stretch; margin: 4px 4px; background: var(--border); flex-shrink: 0; }
+.nav-tab { flex-shrink: 0; }
+
+/* ---------- badges ---------- */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600;
+  padding: 2px 7px; border-radius: 999px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.02em;
+}
+.badge.good { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.badge.warning { background: color-mix(in srgb, #eda100 18%, transparent); color: #c98500; }
+.badge.muted { background: var(--surface-2); color: var(--text-muted); }
+.badge.accent { background: var(--accent-soft); color: var(--accent); }
+
+/* ---------- health hero (overview) ---------- */
+.health-hero {
+  display: flex; gap: 20px; align-items: stretch; margin: 14px 0 22px; padding: 16px 18px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); flex-wrap: wrap;
+}
+.health-gauge-wrap { flex: 0 0 150px; display: flex; flex-direction: column; align-items: center; }
+.health-gauge { width: 116px; height: 116px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.health-gauge-inner {
+  width: 86px; height: 86px; border-radius: 50%; background: var(--surface-1);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.health-gauge-label { font-size: 11px; color: var(--text-muted); margin-top: -6px; }
+.health-hero-chips { flex: 1 1 320px; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-content: center; min-width: 0; }
+.hero-chip { display: flex; flex-direction: column; gap: 3px; }
+.hero-chip-label { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.hero-chip-value { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- languages ---------- */
+.lang-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin: 14px 0 16px; background: var(--surface-2); }
+.lang-bar-seg { height: 100%; }
+.lang-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 16px; }
+.lang-legend-item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; }
+.lang-legend-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lang-legend-pct { color: var(--text-muted); font-family: var(--mono); font-size: 11.5px; }
+
+/* ---------- branches / releases tables ---------- */
+.stat-table-row-name { font-family: var(--mono); font-size: 12px; }
+.ahead-behind { font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+.ahead-behind .plus-text, .ahead-behind .minus-text { font-weight: 600; }
+
+.release-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.release-row {
+  display: flex; align-items: center; gap: 14px; padding: 10px 14px; background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 8px; flex-wrap: wrap;
+}
+.release-name { font-family: var(--mono); font-weight: 600; font-size: 13px; min-width: 90px; }
+.release-date { font-size: 11.5px; color: var(--text-muted); font-family: var(--mono); }
+.release-meta { font-size: 11.5px; color: var(--text-secondary); margin-left: auto; display: flex; gap: 14px; }
+
+/* ---------- insights ---------- */
+.insight-cards { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.insight-card {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface-1); font-size: 12.5px; line-height: 1.5;
+}
+.insight-icon { flex-shrink: 0; font-size: 14px; line-height: 1.4; }
+.insight-card.warning { border-color: color-mix(in srgb, #eda100 45%, var(--border)); }
+.insight-card.good { border-color: color-mix(in srgb, var(--good) 40%, var(--border)); }
+
+.health-breakdown { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.health-breakdown-row { display: flex; align-items: center; gap: 12px; }
+.health-breakdown-label { flex: 0 0 160px; font-size: 12px; color: var(--text-secondary); }
+.health-breakdown-track { flex: 1; height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.health-breakdown-fill { height: 100%; border-radius: 4px; }
+.health-breakdown-detail { flex: 0 0 auto; font-size: 11px; color: var(--text-muted); font-family: var(--mono); white-space: nowrap; }

@@ -1,6 +1,14 @@
+import type { CSSProperties } from "react";
 import type { Commit } from "../types";
+import type { HealthScore } from "../stats";
 import { formatNum, formatDate } from "../format";
 import { ContributionHeatmap } from "./ContributionHeatmap";
+
+function scoreColor(score: number): string {
+  if (score >= 80) return "var(--good)";
+  if (score >= 50) return "var(--accent)";
+  return "var(--critical)";
+}
 
 interface Kpi {
   totalCommits: number;
@@ -34,13 +42,53 @@ interface RepoInfo {
   branches: number;
   tags: number;
   remoteUrl?: string;
+  license?: string;
+  primaryLanguage?: string;
+  avgCommitsPerDay: number;
 }
 
-export function OverviewSection({ kpi, commits, repo }: { kpi: Kpi; commits: Commit[]; repo: RepoInfo }) {
+export function OverviewSection({ kpi, commits, repo, health }: { kpi: Kpi; commits: Commit[]; repo: RepoInfo; health: HealthScore }) {
+  const ageDays = repo.createdAt ? Math.round((Date.now() - repo.createdAt.getTime()) / 86400000) : null;
+  const ageLabel = ageDays == null ? "—" : ageDays < 60 ? `${ageDays}d` : ageDays < 730 ? `${Math.round(ageDays / 30)}mo` : `${(ageDays / 365).toFixed(1)}y`;
+  const gaugeStyle: CSSProperties = {
+    background: `conic-gradient(${scoreColor(health.overall)} calc(${health.overall} * 3.6deg), var(--surface-2) 0)`,
+  };
+
   return (
     <div id="sec-overview" className="section">
       <div className="section-title">Overview</div>
       <div className="section-subtitle">In selected range</div>
+
+      <div className="health-hero">
+        <div className="health-gauge-wrap">
+          <div className="health-gauge" style={gaugeStyle}>
+            <div className="health-gauge-inner">
+              <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--mono)" }}>{health.overall}</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>/ 100</div>
+            </div>
+          </div>
+          <div className="health-gauge-label">Health score</div>
+        </div>
+        <div className="health-hero-chips">
+          <div className="hero-chip">
+            <span className="hero-chip-label">Repo age</span>
+            <span className="hero-chip-value">{ageLabel}</span>
+          </div>
+          <div className="hero-chip">
+            <span className="hero-chip-label">Primary language</span>
+            <span className="hero-chip-value">{repo.primaryLanguage ?? "—"}</span>
+          </div>
+          <div className="hero-chip">
+            <span className="hero-chip-label">License</span>
+            <span className="hero-chip-value">{repo.license || "None detected"}</span>
+          </div>
+          <div className="hero-chip">
+            <span className="hero-chip-label">Avg commits / day</span>
+            <span className="hero-chip-value">{repo.avgCommitsPerDay.toFixed(1)}</span>
+          </div>
+        </div>
+      </div>
+
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-label">Commits</div>
