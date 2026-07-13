@@ -61,14 +61,16 @@ type Filters struct {
 
 // RepoData is the full payload embedded into the report (HTML or JSON).
 type RepoData struct {
-	GeneratedAt time.Time    `json:"generatedAt"`
-	RepoPath    string       `json:"repoPath"`
-	Branches    []string     `json:"branches"`
-	Tags        []string     `json:"tags"`
-	Commits     []Commit     `json:"commits"`
-	Authors     []AuthorStat `json:"authors"`
-	Files       []FileStat   `json:"files"`
-	Tree        []string     `json:"tree"`
-	Truncated   bool         `json:"truncated"`
-	Filters     Filters      `json:"filters"`
+	GeneratedAt  time.Time    `json:"generatedAt"`
+	RepoPath     string       `json:"repoPath"`
+	RemoteURL    string       `json:"remoteUrl,omitempty"`
+	CurrentLines int          `json:"currentLines,omitempty"`
+	Branches     []string     `json:"branches"`
+	Tags         []string     `json:"tags"`
+	Commits      []Commit     `json:"commits"`
+	Authors      []AuthorStat `json:"authors"`
+	Files        []FileStat   `json:"files"`
+	Tree         []string     `json:"tree"`
+	Truncated    bool         `json:"truncated"`
+	Filters      Filters      `json:"filters"`
 }

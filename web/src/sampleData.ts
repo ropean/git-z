@@ -7,15 +7,27 @@ const authors = ["Alice", "Bob", "Carol"];
 const files = ["src/app.ts", "src/api.ts", "src/table.tsx", "src/store.ts", "README.md"];
 const branches = ["main", "feature/x"];
 
+// Spreads commits across ~370 days with uneven density (gaps and bursts),
+// like a real repo's contribution calendar, instead of an even every-other-day
+// cadence — so the heatmap has something interesting to render in dev mode.
+const start = new Date(2025, 6, 1).getTime();
+let dayCursor = 0;
+const commitDays = Array.from({ length: 260 }, (_, i) => {
+  const jitter = (i * 37) % 11;
+  dayCursor += jitter === 0 ? 0 : Math.ceil(jitter / 4); // occasional same-day bursts
+  return new Date(start + dayCursor * 86400000);
+});
+
 export const sampleData: RepoData = {
   generatedAt: new Date().toISOString(),
   repoPath: "/example/repo",
+  remoteUrl: "https://github.com/ropean/digit",
+  currentLines: 18420,
   branches: ["main", "feature/x"],
   tags: ["v1.0.0"],
   truncated: false,
   filters: {},
-  commits: Array.from({ length: 60 }, (_, i) => {
-    const day = new Date(2026, 0, 1 + i * 2);
+  commits: commitDays.map((day, i) => {
     const author = authors[i % authors.length];
     const branch = branches[i % 5 === 0 ? 1 : 0];
     const types = ["feat", "fix", "refactor", "docs", "chore"];

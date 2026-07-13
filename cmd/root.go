@@ -156,6 +156,10 @@ func runGitViz(c *cobra.Command, args []string) error {
 
 	data := aggregate.BuildRepoData(repoPath, commits, branches, tags, filters, truncated)
 	data.Tree = tree
+	data.RemoteURL = gitlog.RemoteURL(repoPath)
+	if lines, lerr := gitlog.CurrentLines(repoPath, treeRef); lerr == nil {
+		data.CurrentLines = lines
+	}
 
 	outputPath := flagOutput
 	if outputPath == "" {

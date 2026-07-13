@@ -51,6 +51,8 @@ export interface Filters {
 export interface RepoData {
   generatedAt: string;
   repoPath: string;
+  remoteUrl?: string;
+  currentLines?: number;
   branches: string[];
   tags: string[];
   commits: Commit[];

@@ -1,5 +1,7 @@
 import type { Commit } from "./types";
 
+const DAY_MS = 86400000;
+
 export interface AuthorAgg {
   name: string;
   email: string;
@@ -77,6 +79,90 @@ export function computeDailyDensity(commits: Commit[]): DensityDay[] {
   return out;
 }
 
+export interface HeatmapCell {
+  date: string | null;
+  count: number;
+}
+export interface HeatmapWeek {
+  cells: HeatmapCell[];
+}
+export interface HeatmapMonthLabel {
+  weekIndex: number;
+  label: string;
+}
+export interface CommitHeatmap {
+  weeks: HeatmapWeek[];
+  monthLabels: HeatmapMonthLabel[];
+  maxCount: number;
+}
+
+// Buckets commits into a GitHub-style calendar grid: columns are weeks
+// (Sunday-start), rows are weekdays. The grid is padded with out-of-range
+// cells (date: null) so every week column has exactly 7 rows.
+export function computeCommitHeatmap(commits: Commit[]): CommitHeatmap {
+  if (commits.length === 0) return { weeks: [], monthLabels: [], maxCount: 0 };
+
+  const days = new Map<string, number>();
+  for (const c of commits) {
+    const key = c.date.slice(0, 10);
+    days.set(key, (days.get(key) ?? 0) + 1);
+  }
+  const dates = [...days.keys()].sort();
+  const minD = new Date(dates[0] + "T00:00:00Z");
+  const maxD = new Date(dates[dates.length - 1] + "T00:00:00Z");
+
+  const start = new Date(minD);
+  start.setUTCDate(start.getUTCDate() - start.getUTCDay());
+  const end = new Date(maxD);
+  end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay()));
+
+  const weeks: HeatmapWeek[] = [];
+  const monthLabels: HeatmapMonthLabel[] = [];
+  let maxCount = 0;
+  let lastMonth = -1;
+  let weekIndex = 0;
+  for (let t = start.getTime(); t <= end.getTime(); t += 7 * DAY_MS) {
+    const cells: HeatmapCell[] = [];
+    for (let dow = 0; dow < 7; dow++) {
+      const cursor = new Date(t + dow * DAY_MS);
+      if (dow === 0) {
+        const month = cursor.getUTCMonth();
+        if (month !== lastMonth) {
+          monthLabels.push({ weekIndex, label: cursor.toLocaleString("en-US", { month: "short", timeZone: "UTC" }) });
+          lastMonth = month;
+        }
+      }
+      const inRange = cursor.getTime() >= minD.getTime() && cursor.getTime() <= maxD.getTime();
+      if (!inRange) {
+        cells.push({ date: null, count: 0 });
+        continue;
+      }
+      const key = cursor.toISOString().slice(0, 10);
+      const count = days.get(key) ?? 0;
+      maxCount = Math.max(maxCount, count);
+      cells.push({ date: key, count });
+    }
+    weeks.push({ cells });
+    weekIndex++;
+  }
+  return { weeks, monthLabels: dropCrampedLabels(monthLabels), maxCount };
+}
+
+// A label lands every time the calendar crosses a month boundary, which can
+// be a single week after the previous one when the visible range starts
+// right before a boundary — two 3-letter labels one column (14px) apart
+// overlap into unreadable text. Drop labels that don't have room.
+const MIN_LABEL_GAP_WEEKS = 3;
+function dropCrampedLabels(labels: HeatmapMonthLabel[]): HeatmapMonthLabel[] {
+  const kept: HeatmapMonthLabel[] = [];
+  for (const label of labels) {
+    const prev = kept[kept.length - 1];
+    if (prev && label.weekIndex - prev.weekIndex < MIN_LABEL_GAP_WEEKS) continue;
+    kept.push(label);
+  }
+  return kept;
+}
+
 export interface CouplingPair {
   a: string;
   b: string;
@@ -123,43 +209,6 @@ export function computeCoupling(commits: Commit[], topN: number): { pairs: Coupl
   }
   const nodes = [...nodesSet].map((path) => ({ path, changeCount: changeCount.get(path) ?? 0 }));
   return { pairs, nodes };
-}
-
-export interface GrowthWeek {
-  week: string;
-  added: number;
-  deleted: number;
-  net: number;
-  cumulative: number;
-}
-
-function isoWeekStart(d: Date): Date {
-  const copy = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const day = (copy.getUTCDay() + 6) % 7; // Monday = 0
-  copy.setUTCDate(copy.getUTCDate() - day);
-  return copy;
-}
-
-export function computeGrowthTrend(commits: Commit[]): GrowthWeek[] {
-  if (commits.length === 0) return [];
-  const sorted = [...commits].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const weekMap = new Map<string, { added: number; deleted: number }>();
-  for (const c of sorted) {
-    const key = isoWeekStart(new Date(c.date)).toISOString().slice(0, 10);
-    let w = weekMap.get(key);
-    if (!w) {
-      w = { added: 0, deleted: 0 };
-      weekMap.set(key, w);
-    }
-    w.added += c.insertions;
-    w.deleted += c.deletions;
-  }
-  const weeks = [...weekMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  let cumulative = 0;
-  return weeks.map(([week, w]) => {
-    cumulative += w.added - w.deleted;
-    return { week, added: w.added, deleted: w.deleted, net: w.added - w.deleted, cumulative };
-  });
 }
 
 export interface KeywordCount {

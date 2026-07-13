@@ -29,6 +29,16 @@ export function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
+// Builds a link to the hosted commit page for a normalized https remote
+// base URL (e.g. "https://github.com/owner/repo"). Bitbucket uses
+// "/commits/<hash>" instead of "/commit/<hash>"; every other host we know
+// of (GitHub, GitLab, Gitea, Gitee, self-hosted forks of the same) uses the
+// singular form.
+export function commitUrl(remoteUrl: string, hash: string): string {
+  const isBitbucket = /(^|\.)bitbucket\.org$/.test(new URL(remoteUrl).hostname);
+  return `${remoteUrl}/${isBitbucket ? "commits" : "commit"}/${hash}`;
+}
+
 // Matches the CLI's default report filename timestamp (MMDDYY-HHmm), so
 // the browser tab title and the file on disk read as the same moment.
 export function formatCompactTimestamp(iso: string): string {

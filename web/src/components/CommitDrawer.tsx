@@ -1,16 +1,17 @@
 import { useMemo } from "react";
 import type { Commit } from "../types";
 import { parseDiffByFile } from "../diff";
-import { formatDateTime } from "../format";
+import { commitUrl, formatDateTime } from "../format";
 
 interface Props {
   commit: Commit;
+  remoteUrl?: string;
   openFile: string | null;
   onToggleFile: (path: string) => void;
   onClose: () => void;
 }
 
-export function CommitDrawer({ commit, openFile, onToggleFile, onClose }: Props) {
+export function CommitDrawer({ commit, remoteUrl, openFile, onToggleFile, onClose }: Props) {
   const diffMap = useMemo(() => parseDiffByFile(commit.rawDiff ?? ""), [commit.rawDiff]);
   const hasDiff = !!commit.rawDiff;
 
@@ -22,6 +23,11 @@ export function CommitDrawer({ commit, openFile, onToggleFile, onClose }: Props)
           <div className="drawer-hash-row">
             <span className="drawer-hash">{commit.hash.slice(0, 10)}</span>
             {commit.branch && <span className="drawer-branch">{commit.branch}</span>}
+            {remoteUrl && (
+              <a className="drawer-remote-link" href={commitUrl(remoteUrl, commit.hash)} target="_blank" rel="noreferrer">
+                View on remote ↗
+              </a>
+            )}
           </div>
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>

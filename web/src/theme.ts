@@ -16,6 +16,19 @@ export const status = {
   critical: { light: "#d03b3b", dark: "#d03b3b" },
 };
 
+// Fixed (non-themed) 4-step intensity ramp for the commit heatmap, light ->
+// dark green — like `status`, chosen once and not swapped per theme so a
+// given intensity always reads as the same color.
+const heatmapSteps = [sequentialAqua[1], sequentialAqua[3], sequentialAqua[4], sequentialAqua[6]];
+
+// Maps a 0-4 activity level (0 = no commits) to a CSS color. Level 0 uses
+// the theme's own empty-surface color so it blends with the page instead of
+// being a fixed gray.
+export function heatmapColor(level: number, emptyColor: string): string {
+  if (level <= 0) return emptyColor;
+  return heatmapSteps[Math.min(level, heatmapSteps.length) - 1];
+}
+
 export function prefersDark(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 }

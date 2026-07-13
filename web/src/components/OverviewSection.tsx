@@ -1,9 +1,7 @@
-import type { EChartsOption } from "echarts";
 import type { Commit } from "../types";
-import type { GrowthWeek } from "../stats";
-import { categorical, chartChrome } from "../theme";
-import { formatNum } from "../format";
-import { EChart } from "./EChart";
+import type { CommitHeatmap } from "../stats";
+import { formatNum, formatDate } from "../format";
+import { ContributionHeatmap } from "./ContributionHeatmap";
 
 interface Kpi {
   totalCommits: number;
@@ -29,41 +27,21 @@ export function computeKpi(commits: Commit[]): Kpi {
   return { totalCommits: commits.length, authorsActive: authors.size, filesTouched: files.size, additions, deletions };
 }
 
-export function OverviewSection({ kpi, growth, dark }: { kpi: Kpi; growth: GrowthWeek[]; dark: boolean }) {
-  const chrome = chartChrome(dark);
-  const color = (dark ? categorical.dark : categorical.light)[0];
+interface RepoInfo {
+  totalCommits: number;
+  totalContributors: number;
+  currentLines?: number;
+  createdAt?: Date;
+  branches: number;
+  tags: number;
+  remoteUrl?: string;
+}
 
-  const option: EChartsOption = {
-    color: [color],
-    tooltip: { trigger: "axis" },
-    grid: { left: 50, right: 16, top: 16, bottom: 30 },
-    xAxis: {
-      type: "category",
-      data: growth.map((g) => g.week),
-      axisLine: { lineStyle: { color: chrome.baseline } },
-      axisLabel: { color: chrome.muted, hideOverlap: true },
-      axisTick: { show: false },
-    },
-    yAxis: {
-      type: "value",
-      splitLine: { lineStyle: { color: chrome.gridline } },
-      axisLabel: { color: chrome.muted },
-    },
-    series: [
-      {
-        name: "Net lines (cumulative)",
-        type: "line",
-        data: growth.map((g) => g.cumulative),
-        symbol: "none",
-        lineStyle: { width: 2 },
-        areaStyle: { opacity: 0.15 },
-      },
-    ],
-  };
-
+export function OverviewSection({ kpi, heatmap, repo }: { kpi: Kpi; heatmap: CommitHeatmap; repo: RepoInfo }) {
   return (
     <div id="sec-overview" className="section">
       <div className="section-title">Overview</div>
+      <div className="section-subtitle">In selected range</div>
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-label">Commits</div>
@@ -86,12 +64,47 @@ export function OverviewSection({ kpi, growth, dark }: { kpi: Kpi; growth: Growt
           <div className="kpi-value critical">−{formatNum(kpi.deletions)}</div>
         </div>
       </div>
-      <div className="section-subtitle">Codebase size trend (weekly, cumulative net lines)</div>
-      {growth.length > 1 ? (
-        <EChart option={option} height={200} dark={dark} />
-      ) : (
-        <div className="empty-state">Not enough data to plot a trend</div>
-      )}
+      <div className="section-subtitle">Repository</div>
+      <div className="kpi-grid">
+        <div className="kpi-card">
+          <div className="kpi-label">Total commits</div>
+          <div className="kpi-value">{formatNum(repo.totalCommits)}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Contributors</div>
+          <div className="kpi-value">{repo.totalContributors}</div>
+        </div>
+        {repo.currentLines != null && (
+          <div className="kpi-card">
+            <div className="kpi-label">Current lines</div>
+            <div className="kpi-value">{formatNum(repo.currentLines)}</div>
+          </div>
+        )}
+        {repo.createdAt && (
+          <div className="kpi-card">
+            <div className="kpi-label">Created</div>
+            <div className="kpi-value">{formatDate(repo.createdAt.toISOString())}</div>
+          </div>
+        )}
+        <div className="kpi-card">
+          <div className="kpi-label">Branches</div>
+          <div className="kpi-value">{repo.branches}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Tags</div>
+          <div className="kpi-value">{repo.tags}</div>
+        </div>
+        {repo.remoteUrl && (
+          <div className="kpi-card">
+            <div className="kpi-label">Repository</div>
+            <a className="kpi-value kpi-link" href={repo.remoteUrl} target="_blank" rel="noreferrer">
+              {repo.remoteUrl.replace(/^https?:\/\//, "")}
+            </a>
+          </div>
+        )}
+      </div>
+      <div className="section-subtitle">Commit activity (selected range)</div>
+      <ContributionHeatmap heatmap={heatmap} />
     </div>
   );
 }

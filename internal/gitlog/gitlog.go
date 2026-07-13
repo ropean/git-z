@@ -292,6 +292,79 @@ func Show(repoPath, hash string) (string, error) {
 	return runGit(repoPath, "show", "--no-color", "-p", "--format=", hash)
 }
 
+// emptyTreeHash is git's well-known hash for the empty tree object, present
+// in every repository without needing to be created.
+const emptyTreeHash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+// CurrentLines returns the total line count across every tracked text file
+// in ref's tree, by diffing against the empty tree: every line in the
+// current tree shows up as a pure insertion, so --shortstat's insertion
+// count is exactly the current line total (binary files are excluded by
+// git automatically, same as --numstat elsewhere in this package).
+func CurrentLines(repoPath, ref string) (int, error) {
+	out, err := runGit(repoPath, "diff", "--shortstat", emptyTreeHash, ref)
+	if err != nil {
+		return 0, err
+	}
+	m := shortstatInsertions.FindStringSubmatch(out)
+	if m == nil {
+		return 0, nil
+	}
+	return strconv.Atoi(m[1])
+}
+
+var shortstatInsertions = regexp.MustCompile(`(\d+) insertions?\(\+\)`)
+
+// RemoteURL returns the repo's "origin" remote normalized to a browsable
+// https URL (e.g. "https://github.com/owner/repo"), or "" if there's no
+// such remote (a purely local repo). SSH and git-protocol remote forms are
+// converted; credentials embedded in an https remote are stripped.
+func RemoteURL(repoPath string) string {
+	out, err := runGit(repoPath, "remote", "get-url", "origin")
+	if err != nil {
+		return ""
+	}
+	return normalizeRemoteURL(strings.TrimSpace(out))
+}
+
+var (
+	scpLikeRemote  = regexp.MustCompile(`^(?:[\w.-]+@)?([\w.-]+):(.+)$`)
+	sshSchemeRegex = regexp.MustCompile(`^ssh://(?:[\w.-]+@)?([\w.-]+)(?::\d+)?/(.+)$`)
+)
+
+func normalizeRemoteURL(remote string) string {
+	remote = strings.TrimSuffix(remote, ".git")
+
+	var host, path string
+	switch {
+	case strings.HasPrefix(remote, "https://") || strings.HasPrefix(remote, "http://"):
+		rest := strings.TrimPrefix(strings.TrimPrefix(remote, "https://"), "http://")
+		slash := strings.Index(rest, "/")
+		if slash == -1 {
+			return ""
+		}
+		hostPart := rest[:slash]
+		if at := strings.LastIndex(hostPart, "@"); at != -1 {
+			hostPart = hostPart[at+1:] // strip embedded user[:token]@ credentials
+		}
+		host, path = hostPart, rest[slash+1:]
+	case sshSchemeRegex.MatchString(remote):
+		m := sshSchemeRegex.FindStringSubmatch(remote)
+		host, path = m[1], m[2]
+	case scpLikeRemote.MatchString(remote):
+		m := scpLikeRemote.FindStringSubmatch(remote)
+		host, path = m[1], m[2]
+	default:
+		return ""
+	}
+
+	path = strings.Trim(path, "/")
+	if host == "" || path == "" {
+		return ""
+	}
+	return "https://" + host + "/" + path
+}
+
 func splitNonEmptyLines(s string) []string {
 	lines := strings.Split(s, "\n")
 	out := make([]string, 0, len(lines))

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RepoData } from "./types";
 import {
   computeAuthorStats,
+  computeCommitHeatmap,
   computeCoupling,
   computeDailyDensity,
   computeFileStats,
-  computeGrowthTrend,
   computeKeywords,
   computeSurvival,
 } from "./stats";
@@ -175,11 +175,23 @@ export function App({ data }: { data: RepoData }) {
   const authorStats = useMemo(() => computeAuthorStats(filteredCommits), [filteredCommits]);
   const fileStats = useMemo(() => computeFileStats(filteredCommits), [filteredCommits]);
   const coupling = useMemo(() => computeCoupling(filteredCommits, 12), [filteredCommits]);
-  const growth = useMemo(() => computeGrowthTrend(filteredCommits), [filteredCommits]);
+  const heatmap = useMemo(() => computeCommitHeatmap(filteredCommits), [filteredCommits]);
   const keywords = useMemo(() => computeKeywords(filteredCommits), [filteredCommits]);
   const survival = useMemo(() => computeSurvival(filteredCommits), [filteredCommits]);
 
   const allAuthorStats = useMemo(() => computeAuthorStats(data.commits), [data.commits]);
+  const repoInfo = useMemo(
+    () => ({
+      totalCommits: data.commits.length,
+      totalContributors: allAuthorStats.length,
+      currentLines: data.currentLines,
+      createdAt: commitTimes.length ? minDate : undefined,
+      branches: data.branches.length,
+      tags: data.tags.length,
+      remoteUrl: data.remoteUrl,
+    }),
+    [data.commits.length, allAuthorStats.length, data.currentLines, commitTimes.length, minDate, data.branches.length, data.tags.length, data.remoteUrl],
+  );
   const authorColorIndex = useMemo(() => {
     const m = new Map<string, number>();
     allAuthorStats.forEach((a, i) => m.set(a.name, i));
@@ -243,7 +255,7 @@ export function App({ data }: { data: RepoData }) {
       )}
       <div className="body-wrap">
         <div className="content-area" ref={scrollRef}>
-          <OverviewSection kpi={kpi} growth={growth} dark={dark} />
+          <OverviewSection kpi={kpi} heatmap={heatmap} repo={repoInfo} />
           <ProjectStructureSection tree={data.tree} />
           <CommitsSection
             commits={filteredCommits}
@@ -283,6 +295,7 @@ export function App({ data }: { data: RepoData }) {
       {selectedCommit && (
         <CommitDrawer
           commit={selectedCommit}
+          remoteUrl={data.remoteUrl}
           openFile={drawerFileOpen}
           onToggleFile={(path) => setDrawerFileOpen((prev) => (prev === path ? null : path))}
           onClose={() => setSelectedHash(null)}
