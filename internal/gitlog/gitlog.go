@@ -114,6 +114,7 @@ func Walk(opts Options, fn func(model.Commit) error) error {
 
 func buildLogArgs(opts Options) []string {
 	args := []string{
+		"-c", "core.quotePath=false",
 		"log",
 		"--no-renames",
 		"--numstat",
@@ -304,6 +305,7 @@ func splitNonEmptyLines(s string) []string {
 }
 
 func runGit(repoPath string, args ...string) (string, error) {
+	args = append([]string{"-c", "core.quotePath=false"}, args...)
 	cmd := exec.Command("git", args...)
 	cmd.Dir = repoPath
 	var out, errBuf bytes.Buffer
