@@ -1,0 +1,6 @@
+/git-viz
+/git-viz-report.html
+*.o
+
+web/node_modules/
+web/tsconfig.tsbuildinfo
