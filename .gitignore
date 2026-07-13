@@ -1,5 +1,5 @@
-/git-viz
-/git-viz-report.html
+/digit
+/digit-report.html
 *.o
 
 web/node_modules/

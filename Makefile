@@ -3,13 +3,13 @@
 build: build-web build-go
 
 build-web:
-	cd web && npm install && npm run build
+	cd web && pnpm install && pnpm run build
 
 build-go:
-	go build -o git-viz .
+	go build -o digit .
 
 dev:
-	cd web && npm run dev
+	cd web && pnpm run dev
 
 clean:
-	rm -f git-viz
+	rm -f digit

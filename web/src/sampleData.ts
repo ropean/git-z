@@ -1,6 +1,6 @@
 import type { RepoData } from "./types";
 
-// Used only in `vite dev` (npm run dev), where window.__GIT_DATA__ is still
+// Used only in `vite dev` (pnpm run dev), where window.__GIT_DATA__ is still
 // the literal "%%GIT_VIZ_DATA%%" placeholder because no Go binary has
 // injected real data. The production build always sees a real object.
 export const sampleData: RepoData = {

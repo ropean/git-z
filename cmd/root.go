@@ -39,7 +39,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "git-viz <repo-path>",
+	Use:   "digit <repo-path>",
 	Short: "生成 Git 仓库历史的可视化报告",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runGitViz,
@@ -47,7 +47,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	flags := rootCmd.Flags()
-	flags.StringVarP(&flagOutput, "output", "o", "./git-viz-report.html", "输出文件路径")
+	flags.StringVarP(&flagOutput, "output", "o", "./digit-report.html", "输出文件路径")
 	flags.StringVar(&flagSince, "since", "", "起始日期（含），支持绝对日期或相对值如 30d")
 	flags.StringVar(&flagUntil, "until", "", "截止日期（含）")
 	flags.StringVar(&flagAuthor, "author", "", "按作者名/邮箱过滤，逗号分隔，支持多个")
