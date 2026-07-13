@@ -14,7 +14,7 @@ var webDistFS embed.FS
 func main() {
 	cmd.WebDist = webDistFS
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "错误:", err)
+		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
 }

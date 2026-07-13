@@ -43,26 +43,26 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "digit <repo-path>",
-	Short: "生成 Git 仓库历史的可视化报告",
+	Short: "Generate a visual report of a git repository's history",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runGitViz,
 }
 
 func init() {
 	flags := rootCmd.Flags()
-	flags.StringVarP(&flagOutput, "output", "o", "", "输出文件路径（默认写入系统下载目录下的 digit-reports/<仓库名>-<hash>/report-<时间戳>.html）")
-	flags.StringVar(&flagSince, "since", "", "起始日期（含），支持绝对日期或相对值如 30d")
-	flags.StringVar(&flagUntil, "until", "", "截止日期（含）")
-	flags.StringVar(&flagAuthor, "author", "", "按作者名/邮箱过滤，逗号分隔，支持多个")
-	flags.StringVar(&flagBranch, "branch", "", "指定分支，默认取当前分支")
-	flags.BoolVar(&flagAllBranches, "all-branches", false, "分析所有分支")
-	flags.StringVar(&flagExclude, "exclude", "", "排除路径的 glob 模式，逗号分隔")
-	flags.StringVar(&flagInclude, "include", "", "只包含匹配路径的 glob 模式，逗号分隔")
-	flags.IntVar(&flagMaxCommits, "max-commits", 0, "最大提交数（0 为不限制，超过则按时间倒序截断）")
-	flags.BoolVar(&flagDiffContent, "diff-content", false, "提取完整 diff 内容（会显著增大体积和耗时）")
-	flags.StringVar(&flagFormat, "format", "html", "输出格式：html 或 json")
-	flags.BoolVar(&flagOpen, "open", false, "生成后自动用默认浏览器打开")
-	flags.BoolVarP(&flagQuiet, "quiet", "q", false, "静默模式，只输出必要信息")
+	flags.StringVarP(&flagOutput, "output", "o", "", "output file path (defaults to <Downloads>/digit-reports/<repo-name>-<hash>/report-<timestamp>.html)")
+	flags.StringVar(&flagSince, "since", "", "start date (inclusive); accepts an absolute date or a relative value like 30d")
+	flags.StringVar(&flagUntil, "until", "", "end date (inclusive)")
+	flags.StringVar(&flagAuthor, "author", "", "filter by author name/email, comma-separated, multiple allowed")
+	flags.StringVar(&flagBranch, "branch", "", "branch to analyze (defaults to the current branch)")
+	flags.BoolVar(&flagAllBranches, "all-branches", false, "analyze all branches")
+	flags.StringVar(&flagExclude, "exclude", "", "glob patterns of paths to exclude, comma-separated")
+	flags.StringVar(&flagInclude, "include", "", "glob patterns of paths to include only, comma-separated")
+	flags.IntVar(&flagMaxCommits, "max-commits", 0, "max number of commits (0 = unlimited; truncates to the most recent N)")
+	flags.BoolVar(&flagDiffContent, "diff-content", false, "extract full diff content (significantly increases size and runtime)")
+	flags.StringVar(&flagFormat, "format", "html", "output format: html or json")
+	flags.BoolVar(&flagOpen, "open", false, "open the report in the default browser once generated")
+	flags.BoolVarP(&flagQuiet, "quiet", "q", false, "quiet mode: only print what's necessary")
 }
 
 // Execute runs the root command.
@@ -74,17 +74,17 @@ func runGitViz(c *cobra.Command, args []string) error {
 	repoPath := args[0]
 	info, err := os.Stat(repoPath)
 	if err != nil || !info.IsDir() {
-		return fmt.Errorf("仓库路径不存在或不是目录: %s", repoPath)
+		return fmt.Errorf("repo path doesn't exist or isn't a directory: %s", repoPath)
 	}
 	if flagFormat != "html" && flagFormat != "json" {
-		return fmt.Errorf("--format 只支持 html 或 json，收到: %s", flagFormat)
+		return fmt.Errorf("--format only supports html or json, got: %s", flagFormat)
 	}
 
 	branch := flagBranch
 	if branch == "" && !flagAllBranches {
 		branch, err = gitlog.CurrentBranch(repoPath)
 		if err != nil {
-			return fmt.Errorf("无法读取当前分支（%s 是 git 仓库吗？）: %w", repoPath, err)
+			return fmt.Errorf("couldn't read the current branch (is %s a git repo?): %w", repoPath, err)
 		}
 	}
 
@@ -103,7 +103,7 @@ func runGitViz(c *cobra.Command, args []string) error {
 		if total, cerr := gitlog.Count(opts); cerr == nil && total > flagMaxCommits {
 			truncated = true
 			if !flagQuiet {
-				fmt.Fprintf(os.Stderr, "提示: 仓库共有 %d 条提交，已按 --max-commits 截取最近 %d 条\n", total, flagMaxCommits)
+				fmt.Fprintf(os.Stderr, "note: repo has %d commits total; truncated to the most recent %d via --max-commits\n", total, flagMaxCommits)
 			}
 		}
 	}
@@ -126,16 +126,16 @@ func runGitViz(c *cobra.Command, args []string) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("解析 git log 失败: %w", err)
+		return fmt.Errorf("failed to parse git log: %w", err)
 	}
 
 	branches, err := gitlog.Branches(repoPath)
 	if err != nil {
-		return fmt.Errorf("读取分支列表失败: %w", err)
+		return fmt.Errorf("failed to read branch list: %w", err)
 	}
 	tags, err := gitlog.Tags(repoPath)
 	if err != nil {
-		return fmt.Errorf("读取标签列表失败: %w", err)
+		return fmt.Errorf("failed to read tag list: %w", err)
 	}
 
 	treeRef := branch
@@ -144,7 +144,7 @@ func runGitViz(c *cobra.Command, args []string) error {
 	}
 	tree, err := gitlog.Tree(repoPath, treeRef)
 	if err != nil {
-		return fmt.Errorf("读取项目文件树失败: %w", err)
+		return fmt.Errorf("failed to read project file tree: %w", err)
 	}
 
 	filters := model.Filters{
@@ -170,7 +170,7 @@ func runGitViz(c *cobra.Command, args []string) error {
 	}
 	if dir := filepath.Dir(outputPath); dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("创建输出目录失败: %w", err)
+			return fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
 
@@ -181,16 +181,16 @@ func runGitViz(c *cobra.Command, args []string) error {
 		err = render.WriteHTML(data, outputPath, WebDist)
 	}
 	if err != nil {
-		return fmt.Errorf("生成报告失败: %w", err)
+		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
 	if !flagQuiet {
-		fmt.Printf("已生成报告: %s (%d 条提交, %d 位作者)\n", outputPath, len(data.Commits), len(data.Authors))
+		fmt.Printf("Report generated: %s (%d commits, %d authors)\n", outputPath, len(data.Commits), len(data.Authors))
 	}
 
 	if flagOpen {
 		if err := openBrowser(outputPath); err != nil && !flagQuiet {
-			fmt.Fprintf(os.Stderr, "无法自动打开浏览器: %v\n", err)
+			fmt.Fprintf(os.Stderr, "couldn't open browser automatically: %v\n", err)
 		}
 	}
 	return nil
@@ -205,7 +205,7 @@ func runGitViz(c *cobra.Command, args []string) error {
 func defaultOutputPath(absRepoPath, format string) (string, error) {
 	downloads, err := userDownloadsDir()
 	if err != nil {
-		return "", fmt.Errorf("无法定位系统下载目录: %w", err)
+		return "", fmt.Errorf("couldn't locate the system Downloads directory: %w", err)
 	}
 	repoBase := filepath.Base(absRepoPath)
 	ext := "html"

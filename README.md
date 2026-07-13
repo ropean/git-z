@@ -1,29 +1,33 @@
 # digit
 
-Git 历史可视化 CLI：分析本地仓库的提交历史，生成一个自包含的 HTML 报告（或 JSON）。
-报告页面为英文界面，包含总览趋势、可筛选的提交记录（含真实 diff 详情抽屉）、贡献者、
-文件热度、分支/合并图谱、文件耦合分析、代码存活率估算、commit 关键词云等板块。
+A git history visualization CLI: analyzes a local repository's commit history and
+generates a self-contained HTML report (or JSON). The report page has an English UI
+covering overview trends, a filterable commit list (with a real diff detail drawer),
+contributors, file heat, file coupling analysis, an estimated code-survival curve,
+and a commit-keyword cloud.
 
-## 构建
+## Build
 
 ```bash
-make build        # 等价于先 build-web 再 build-cli
-./digit --help     # Windows 下产物是 digit.exe
+make build        # equivalent to build-web then build-cli
+./digit --help     # produces digit.exe on Windows
 ```
 
-前端（`web/`）基于 Vite + React + ECharts，使用 `vite-plugin-singlefile` 打包成单个
-`web/dist/index.html`，再由 Go 的 `go:embed` 内嵌进最终二进制。**`web/dist/` 不提交到仓库**
-——它是构建产物，必须先跑 `make build-web`（或 `cd web && pnpm install && pnpm run build`）
-生成之后，`go build .` / `make build-cli` 才能成功（`go:embed` 要求该目录在编译时已存在，
-新 clone 下来直接 `go build .` 会报 `pattern web/dist: no matching files found`，这是预期行为，
-先跑一次 `make build-web` 即可）。修改前端代码后同样需要重新执行 `make build-web` 才能让
-`go build` 嵌入最新产物。
+The frontend (`web/`) is Vite + React + ECharts, bundled into a single
+`web/dist/index.html` via `vite-plugin-singlefile`, then embedded into the final
+binary with Go's `go:embed`. **`web/dist/` is not committed** — it's a build
+artifact, so you must run `make build-web` (or `cd web && pnpm install && pnpm run
+build`) first; only then will `go build .` / `make build-cli` succeed (`go:embed`
+requires that directory to exist at compile time — a fresh clone running `go build
+.` directly will fail with `pattern web/dist: no matching files found`, which is
+expected; just run `make build-web` once). Frontend changes likewise need a
+`make build-web` rerun before `go build` picks up the new output.
 
-## 用法
+## Usage
 
 ```bash
-digit .                                   # 分析当前目录仓库，默认写入
-                                           # ~/Downloads/digit-reports/<仓库名>-<hash>/report-<时间戳>.html
+digit .                                   # analyze the repo in the current directory; writes to
+                                           # ~/Downloads/digit-reports/<repo-name>-<hash>/report-<timestamp>.html
 digit /path/to/repo -o report.html
 digit . --since 2026-01-01 --until 2026-07-01
 digit . --author "Wei,someone@example.com"
@@ -35,37 +39,45 @@ digit . --open
 digit . --format json --output data.json
 ```
 
-参数详见 `digit --help`。
+See `digit --help` for the full flag list.
 
-## 项目结构
+## Project layout
 
 ```
-cmd/            cobra 命令与参数绑定
-internal/gitlog     调用系统 git 命令并流式解析 numstat 输出
-internal/model       共享数据结构
-internal/aggregate   include/exclude glob 过滤 + 作者/文件维度聚合
-internal/render      HTML 模板注入 / JSON 输出
-web/             前端源码（Vite + React + ECharts）
-web/dist/        前端构建产物（不提交，go:embed 引入前需先 make build-web 生成）
+cmd/                 cobra command and flag wiring
+internal/gitlog      shells out to system git, streams and parses numstat output
+internal/model       shared data structures
+internal/aggregate   include/exclude glob filtering + author/file rollups
+internal/render      HTML template injection / JSON output
+web/                 frontend source (Vite + React + ECharts)
+web/dist/            frontend build output (not committed; run make build-web first)
 ```
 
-## 报告板块
+## Report sections
 
-- **Overview** — KPI 卡片 + 按周聚合的代码规模趋势图
-- **Structure** — 项目文件树（`git ls-tree` 读取受跟踪文件，天然遵循 .gitignore，只展示源码），
-  可展开/折叠 + 按名称筛选
-- **Commits** — 按作者/文件路径/message 关键词筛选 + 分页表格，点击一行打开右侧详情抽屉
-  （抽屉内可展开每个文件的真实 diff —— 需要生成报告时加 `--diff-content`，否则只显示增删行数）
-- **Contributors** — 按提交数排行，点击可联动筛选 Commits
-- **File Heat** — 按改动频率着色/放大的文件色块，点击联动筛选 Commits
-- **Branch Graph** — 分支/合并提交图谱（依赖 `git log --source`；只有 `--all-branches` 时才有多分支意义）
-- **Coupling** — 经常在同一次提交中一起修改的文件网络图 + 列表
-- **Survival (estimated)** — 按月新增行数 vs. 估算存活比例，衰减模型估算，非真实 `git blame` 分析
-- **Keywords** — 从 commit message 前缀（`feat:`/`fix:`/…）提取的词云
+- **Overview** — KPI cards + a weekly codebase-size trend chart
+- **Structure** — project file tree (`git ls-tree` reads tracked files, which
+  naturally respects .gitignore since ignored files were never tracked), with
+  expand/collapse and a name filter
+- **Commits** — filterable (author/file path/message keyword), paginated table;
+  clicking a row opens a detail drawer on the right (expand any file there to see
+  its real diff — only available if the report was generated with `--diff-content`,
+  otherwise just insertion/deletion counts are shown)
+- **Contributors** — ranked by commit count; click one to filter Commits
+- **File Heat** — chips sized/colored by change frequency; click one to filter
+  Commits
+- **Coupling** — a network graph + list of files frequently changed together in the
+  same commit
+- **Survival (estimated)** — lines added per month vs. an estimated surviving
+  share, computed with a decay heuristic (not a real `git blame` analysis)
+- **Keywords** — a word cloud of commit-message prefixes (`feat:`/`fix:`/…)
 
-顶部还有时间范围快捷按钮、自定义日期、提交密度直方图 + 双滑块刷选，以及全局搜索框。
+The top of the report also has quick date-range presets, a custom-range picker, a
+commit-density histogram with a dual-handle brush selector, and a global search box.
 
-## 已知范围
+## Known gaps
 
-本期未实现：增量分析缓存、`.digit.yaml` 配置文件、CI 定时报告。设计稿中的"仓库切换器/对比模式"
-未实现——那是 mock 数据里做了两个假仓库用来演示对比，本工具是单仓库单报告模型，不适用。
+Not implemented this round: incremental analysis caching, a `.digit.yaml` config
+file, or scheduled CI reports. The design mock's "repo switcher / compare mode"
+was intentionally skipped — that existed only to demo two fake mock repos side by
+side, and doesn't fit this tool's single-repo-per-report model.

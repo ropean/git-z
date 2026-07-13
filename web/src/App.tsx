@@ -20,7 +20,6 @@ import { ProjectStructureSection } from "./components/ProjectStructureSection";
 import { CommitsSection } from "./components/CommitsSection";
 import { ContributorsSection } from "./components/ContributorsSection";
 import { FileHeatSection } from "./components/FileHeatSection";
-import { BranchGraphSection } from "./components/BranchGraphSection";
 import { CouplingSection } from "./components/CouplingSection";
 import { SurvivalSection } from "./components/SurvivalSection";
 import { KeywordsSection } from "./components/KeywordsSection";
@@ -34,7 +33,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: "commits", label: "Commits" },
   { id: "contributors", label: "Contributors" },
   { id: "files", label: "File Heat" },
-  { id: "branches", label: "Branch Graph" },
   { id: "coupling", label: "Coupling" },
   { id: "survival", label: "Survival" },
   { id: "keywords", label: "Keywords" },
@@ -285,7 +283,6 @@ export function App({ data }: { data: RepoData }) {
           />
           <ContributorsSection authors={authorStats} authorFilter={authorFilter} onSelectAuthor={onSelectAuthor} authorColor={authorColor} />
           <FileHeatSection files={fileStats} onSelectFile={onSelectFile} />
-          <BranchGraphSection commits={filteredCommits} dark={dark} />
           <CouplingSection pairs={coupling.pairs} nodes={coupling.nodes} />
           <SurvivalSection survival={survival} />
           <KeywordsSection keywords={keywords} />

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { DensityDay } from "../stats";
 import { formatDate } from "../format";
 
@@ -31,6 +31,7 @@ const QUICK_DEFS = [
 
 export function TimelineFilterBar(props: Props) {
   const { minDate, maxDate, dateFrom, dateTo, quickRange, density } = props;
+  const [showCustom, setShowCustom] = useState(false);
   const totalDaySpan = Math.max(1, Math.round((maxDate.getTime() - minDate.getTime()) / DAY_MS));
   const fromDayIndex = Math.round((dateFrom.getTime() - minDate.getTime()) / DAY_MS);
   const toDayIndex = Math.round((dateTo.getTime() - minDate.getTime()) / DAY_MS);
@@ -48,6 +49,19 @@ export function TimelineFilterBar(props: Props) {
             {q.label}
           </button>
         ))}
+        <button
+          className={"quick-btn" + (showCustom ? " active" : "")}
+          onClick={() => setShowCustom((v) => !v)}
+        >
+          Custom range…
+        </button>
+        {props.hasActiveFilters && (
+          <button className="clear-btn" onClick={props.onClearFilters}>
+            Clear filters ({props.filteredCount} / {props.totalCount})
+          </button>
+        )}
+      </div>
+      {showCustom && (
         <div className="date-inputs-row">
           <input
             type="date"
@@ -63,12 +77,7 @@ export function TimelineFilterBar(props: Props) {
             onChange={(e) => e.target.value && props.onCustomTo(e.target.value)}
           />
         </div>
-        {props.hasActiveFilters && (
-          <button className="clear-btn" onClick={props.onClearFilters}>
-            Clear filters ({props.filteredCount} / {props.totalCount})
-          </button>
-        )}
-      </div>
+      )}
       <div className="density-wrap">
         <div className="density-bars">
           {density.map((d) => {
