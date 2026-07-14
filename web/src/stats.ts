@@ -564,6 +564,7 @@ const EXTENSION_LANGUAGES: Record<string, string> = {
   vb: "Visual Basic", pas: "Pascal", f90: "Fortran", f95: "Fortran", for: "Fortran", asm: "Assembly", s: "Assembly",
   vhd: "VHDL", vhdl: "VHDL", v: "Verilog", matlab: "MATLAB", ipynb: "Jupyter Notebook", coffee: "CoffeeScript",
   pug: "Pug", hbs: "Handlebars", twig: "Twig", vim: "Vim Script", el: "Emacs Lisp", diff: "Diff", patch: "Diff", cmake: "CMake",
+  xslt: "XSLT", xsl: "XSLT",
 };
 
 const FILENAME_LANGUAGES: Record<string, string> = {
@@ -571,9 +572,37 @@ const FILENAME_LANGUAGES: Record<string, string> = {
   rakefile: "Ruby", gemfile: "Ruby", jenkinsfile: "Groovy",
 };
 
-function languageForPath(path: string): string {
+// Mirrors internal/aggregate/language.go's ignoredExtensions/ignoredFilenames:
+// binary assets and lock/config noise are excluded from churn stats entirely
+// rather than falling into "Other".
+const IGNORED_EXTENSIONS = new Set([
+  "png", "jpg", "jpeg", "gif", "ico", "svg", "webp", "bmp", "tiff", "tif", "avif", "heic", "cur",
+  "woff", "woff2", "ttf", "eot", "otf",
+  "mp3", "mp4", "avi", "mov", "wav", "ogg", "webm", "flac", "m4a", "swf",
+  "zip", "tar", "gz", "tgz", "rar", "7z", "bz2", "xz",
+  "exe", "dll", "so", "dylib", "bin", "dat", "sqlite", "sqlite3", "db", "pdb",
+  "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+  "lock", "map",
+]);
+
+const IGNORED_FILENAMES = new Set([
+  "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "cargo.lock", "gemfile.lock", "composer.lock",
+  ".gitignore", ".gitattributes", ".dockerignore", ".npmrc", ".editorconfig", ".prettierignore", ".eslintignore", ".gitkeep",
+  ".ds_store",
+]);
+
+function isIgnoredPath(base: string): boolean {
+  if (IGNORED_FILENAMES.has(base)) return true;
+  if (base.startsWith(".env")) return true;
+  const dot = base.lastIndexOf(".");
+  return dot !== -1 && IGNORED_EXTENSIONS.has(base.slice(dot + 1));
+}
+
+function languageForPath(path: string): string | null {
   const base = (path.split("/").pop() ?? path).toLowerCase();
+  if (isIgnoredPath(base)) return null;
   if (FILENAME_LANGUAGES[base]) return FILENAME_LANGUAGES[base];
+  if (base.startsWith("dockerfile.")) return "Dockerfile";
   const dot = base.lastIndexOf(".");
   if (dot === -1) return "Other";
   return EXTENSION_LANGUAGES[base.slice(dot + 1)] ?? "Other";
@@ -591,6 +620,7 @@ export function computeLanguageActivity(commits: Commit[]): LanguageActivity[] {
   for (const c of commits) {
     for (const f of c.files ?? []) {
       const lang = languageForPath(f.path);
+      if (lang === null) continue;
       map.set(lang, (map.get(lang) ?? 0) + f.insertions + f.deletions);
     }
   }

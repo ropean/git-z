@@ -119,6 +119,57 @@ var extensionLanguages = map[string]string{
 	".diff":       "Diff",
 	".patch":      "Diff",
 	".cmake":      "CMake",
+	".xslt":       "XSLT",
+	".xsl":        "XSLT",
+}
+
+// ignoredExtensions are binary assets and generated/lock artifacts that
+// GitHub's own language bar excludes from the byte-size denominator
+// entirely — counting them would drown a repo's actual source under
+// "Other" (e.g. a single seed-data image or sqlite fixture outweighing all
+// the TypeScript in a project).
+var ignoredExtensions = map[string]bool{
+	// Images
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".ico": true,
+	".svg": true, ".webp": true, ".bmp": true, ".tiff": true, ".tif": true,
+	".avif": true, ".heic": true, ".cur": true,
+	// Fonts
+	".woff": true, ".woff2": true, ".ttf": true, ".eot": true, ".otf": true,
+	// Audio/video
+	".mp3": true, ".mp4": true, ".avi": true, ".mov": true, ".wav": true,
+	".ogg": true, ".webm": true, ".flac": true, ".m4a": true, ".swf": true,
+	// Archives
+	".zip": true, ".tar": true, ".gz": true, ".tgz": true, ".rar": true,
+	".7z": true, ".bz2": true, ".xz": true,
+	// Binaries / data blobs
+	".exe": true, ".dll": true, ".so": true, ".dylib": true, ".bin": true,
+	".dat": true, ".sqlite": true, ".sqlite3": true, ".db": true, ".pdb": true,
+	// Documents
+	".pdf": true, ".doc": true, ".docx": true, ".xls": true, ".xlsx": true,
+	".ppt": true, ".pptx": true,
+	// Generated/lock artifacts
+	".lock": true, ".map": true,
+}
+
+// ignoredFilenames are exact (lowercased) basenames that are config/lock
+// noise rather than source, including lockfiles whose extension alone
+// (.json, .yaml) would otherwise misattribute them to that language.
+var ignoredFilenames = map[string]bool{
+	"package-lock.json": true, "npm-shrinkwrap.json": true, "pnpm-lock.yaml": true,
+	"yarn.lock": true, "cargo.lock": true, "gemfile.lock": true, "composer.lock": true,
+	".gitignore": true, ".gitattributes": true, ".dockerignore": true, ".npmrc": true,
+	".editorconfig": true, ".prettierignore": true, ".eslintignore": true, ".gitkeep": true,
+	".ds_store": true,
+}
+
+func isIgnoredPath(base string) bool {
+	if ignoredFilenames[base] {
+		return true
+	}
+	if strings.HasPrefix(base, ".env") {
+		return true
+	}
+	return ignoredExtensions[strings.ToLower(filepath.Ext(base))]
 }
 
 // maxLanguages caps the returned distribution to the largest N languages
@@ -131,7 +182,11 @@ const maxLanguages = 12
 func ComputeLanguages(sizes []gitlog.TreeSize) []model.LanguageStat {
 	totals := map[string]*model.LanguageStat{}
 	for _, s := range sizes {
-		lang := languageFor(s.Path)
+		base := strings.ToLower(filepath.Base(s.Path))
+		if isIgnoredPath(base) {
+			continue
+		}
+		lang := languageFor(base)
 		st, ok := totals[lang]
 		if !ok {
 			st = &model.LanguageStat{Language: lang}
@@ -174,12 +229,14 @@ var filenameLanguages = map[string]string{
 	"jenkinsfile":    "Groovy",
 }
 
-func languageFor(path string) string {
-	base := strings.ToLower(filepath.Base(path))
+func languageFor(base string) string {
 	if lang, ok := filenameLanguages[base]; ok {
 		return lang
 	}
-	ext := strings.ToLower(filepath.Ext(path))
+	if strings.HasPrefix(base, "dockerfile.") {
+		return "Dockerfile"
+	}
+	ext := strings.ToLower(filepath.Ext(base))
 	if lang, ok := extensionLanguages[ext]; ok {
 		return lang
 	}
