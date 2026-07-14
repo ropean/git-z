@@ -109,7 +109,7 @@ export function RhythmSection({ commits, commitStats }: { commits: Commit[]; com
                 </div>
               </div>
             </div>
-            <div className="heatmap-controls" style={{ marginLeft: LABEL_WIDTH }}>
+            <div className="heatmap-controls" style={{ marginLeft: LABEL_WIDTH, width: HOURS * step }}>
               {peak.count > 0 && (
                 <div className="section-subtitle" style={{ margin: 0 }}>
                   Peak: {WEEKDAY_LABELS[peak.day]} at {peak.hour}:00 ({formatNum(peak.count)} commits)

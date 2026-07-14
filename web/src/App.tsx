@@ -206,6 +206,54 @@ export function App({ data }: { data: RepoData }) {
     () => (releaseStats.length > 0 ? BASE_NAV_ITEMS : BASE_NAV_ITEMS.filter((item) => item.id !== "releases")),
     [releaseStats.length],
   );
+
+  // Scroll-spy: keep the nav tab highlight in sync with whichever section is
+  // currently at the top of the scroll container, not just the last-clicked one.
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root) return;
+    const elements = navItems
+      .map((item) => root.querySelector<HTMLElement>("#sec-" + item.id))
+      .filter((el): el is HTMLElement => !!el);
+    if (elements.length === 0) return;
+
+    // The observer's "active band" sits near the top of the container, so a
+    // short final section can never grow tall enough to reach it as the page
+    // bottoms out. This ref lets the scroll handler below veto the observer's
+    // verdict once we've hit the bottom — otherwise the two race (the
+    // IntersectionObserver callback can land a frame after our own handler
+    // and silently overwrite it back to the second-to-last section).
+    let atBottom = false;
+
+    // Shrinking the root's bottom by 75% turns the observer into a thin
+    // "active band" pinned to the top of the container — the topmost section
+    // still overlapping that band is the one the reader is currently at.
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (atBottom) return;
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          setActiveSection(visible[0].target.id.replace(/^sec-/, ""));
+        }
+      },
+      { root, rootMargin: "0px 0px -75% 0px", threshold: [0, 1] },
+    );
+    elements.forEach((el) => observer.observe(el));
+
+    const lastId = navItems[navItems.length - 1]?.id;
+    const handleScroll = () => {
+      atBottom = !!lastId && root.scrollTop + root.clientHeight >= root.scrollHeight - 4;
+      if (atBottom) setActiveSection(lastId!);
+    };
+    root.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      root.removeEventListener("scroll", handleScroll);
+    };
+  }, [navItems]);
   const docHealth = useMemo(() => computeDocHealth(data.tree, data.commits, now), [data.tree, data.commits, now]);
   const testRatio = useMemo(() => computeTestRatio(data.tree), [data.tree]);
   const treeCounts = useMemo(() => countEntries(buildTree(data.tree)), [data.tree]);
