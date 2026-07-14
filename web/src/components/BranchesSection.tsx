@@ -45,7 +45,7 @@ export function BranchesSection({ branches }: { branches: BranchStat[] }) {
         <div className="empty-state">No branch data</div>
       ) : (
         <div className="table-card table-wrap">
-          <table>
+          <table className="table-zebra">
             <thead>
               <tr>
                 <th>Branch</th>

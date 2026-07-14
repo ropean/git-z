@@ -375,65 +375,93 @@ export function App({ data }: { data: RepoData }) {
       )}
       <div className="body-wrap">
         <div className="content-area" ref={scrollRef}>
-          <OverviewSection
-            kpi={kpi}
-            commits={filteredCommits}
-            repo={repoInfo}
-            health={health}
-            periodComparison={periodComparison}
-            monthlySeries={allChurnTrend}
-            maturity={maturity}
-            activityLevel={activityLevel}
-            growth={growth}
-            executiveSummary={executiveSummary}
-            testRatio={testRatio}
-            docDetail={docHealth.detail}
-          />
-          <CommitsSection
-            commits={filteredCommits}
-            authorNames={allAuthorStats.map((a) => a.name)}
-            authorFilter={authorFilter}
-            onAuthorFilterChange={(v) => {
-              setAuthorFilter(v);
-              setPage(1);
-            }}
-            fileFilter={fileFilter}
-            onFileFilterChange={(v) => {
-              setFileFilter(v);
-              setPage(1);
-            }}
-            messageFilter={messageFilter}
-            onMessageFilterChange={(v) => {
-              setMessageFilter(v);
-              setPage(1);
-            }}
-            page={page}
-            onPageChange={setPage}
-            selectedHash={selectedHash}
-            onSelectCommit={(hash) => {
-              setSelectedHash(hash);
-              setDrawerFileOpen(null);
-            }}
-            authorColor={authorColor}
-          />
-          <RhythmSection commits={filteredCommits} commitStats={commitStats} />
-          <ProjectStructureSection tree={data.tree} />
-          <LanguagesSection languages={languages} activity={languageActivity} dark={dark} />
-          <DirectoriesSection directories={directoryStats} onSelectDirectory={onSelectDirectory} />
-          <FileHeatSection files={fileStats} onSelectFile={onSelectFile} />
-          <CouplingSection pairs={coupling.pairs} nodes={coupling.nodes} />
-          <ContributorsSection
-            authors={authorStats}
-            authorFilter={authorFilter}
-            onSelectAuthor={onSelectAuthor}
-            authorColor={authorColor}
-            busFactor={busFactor}
-            fileStats={fileStats}
-          />
-          <BranchesSection branches={branchStats} />
-          {releaseStats.length > 0 && <ReleasesSection releases={releaseStats} />}
-          <KeywordsSection keywords={keywords} />
-          <InsightsSection health={health} insights={insights} />
+          <div className="content-inner">
+            {/* Grouped — and alternately tinted — to match the nav tabs above, so a
+                long scroll reads as distinct regions (Overview / Activity / Code /
+                People / Branches & Releases / Insights) instead of one unbroken list
+                of look-alike sections. */}
+            <div className="section-group">
+              <OverviewSection
+                kpi={kpi}
+                commits={filteredCommits}
+                repo={repoInfo}
+                health={health}
+                periodComparison={periodComparison}
+                monthlySeries={allChurnTrend}
+                maturity={maturity}
+                activityLevel={activityLevel}
+                growth={growth}
+                executiveSummary={executiveSummary}
+                testRatio={testRatio}
+                docDetail={docHealth.detail}
+              />
+            </div>
+
+            <div className="section-group section-group-tint">
+              <div className="section-group-label">Activity</div>
+              <CommitsSection
+                commits={filteredCommits}
+                authorNames={allAuthorStats.map((a) => a.name)}
+                authorFilter={authorFilter}
+                onAuthorFilterChange={(v) => {
+                  setAuthorFilter(v);
+                  setPage(1);
+                }}
+                fileFilter={fileFilter}
+                onFileFilterChange={(v) => {
+                  setFileFilter(v);
+                  setPage(1);
+                }}
+                messageFilter={messageFilter}
+                onMessageFilterChange={(v) => {
+                  setMessageFilter(v);
+                  setPage(1);
+                }}
+                page={page}
+                onPageChange={setPage}
+                selectedHash={selectedHash}
+                onSelectCommit={(hash) => {
+                  setSelectedHash(hash);
+                  setDrawerFileOpen(null);
+                }}
+                authorColor={authorColor}
+              />
+              <RhythmSection commits={filteredCommits} commitStats={commitStats} />
+            </div>
+
+            <div className="section-group">
+              <div className="section-group-label">Code</div>
+              <ProjectStructureSection tree={data.tree} />
+              <LanguagesSection languages={languages} activity={languageActivity} dark={dark} />
+              <DirectoriesSection directories={directoryStats} onSelectDirectory={onSelectDirectory} />
+              <FileHeatSection files={fileStats} onSelectFile={onSelectFile} />
+              <CouplingSection pairs={coupling.pairs} nodes={coupling.nodes} />
+            </div>
+
+            <div className="section-group section-group-tint">
+              <div className="section-group-label">People</div>
+              <ContributorsSection
+                authors={authorStats}
+                authorFilter={authorFilter}
+                onSelectAuthor={onSelectAuthor}
+                authorColor={authorColor}
+                busFactor={busFactor}
+                fileStats={fileStats}
+              />
+            </div>
+
+            <div className="section-group">
+              <div className="section-group-label">Branches &amp; Releases</div>
+              <BranchesSection branches={branchStats} />
+              {releaseStats.length > 0 && <ReleasesSection releases={releaseStats} />}
+            </div>
+
+            <div className="section-group section-group-tint">
+              <div className="section-group-label">Insights</div>
+              <KeywordsSection keywords={keywords} />
+              <InsightsSection health={health} insights={insights} />
+            </div>
+          </div>
         </div>
       </div>
 

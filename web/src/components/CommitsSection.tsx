@@ -57,7 +57,7 @@ export function CommitsSection(props: Props) {
       </div>
       <div className="table-card">
         <div className="table-wrap">
-          <table>
+          <table className="table-zebra">
             <thead>
               <tr>
                 <th>Date</th>
