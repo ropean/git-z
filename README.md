@@ -5,6 +5,20 @@ generates a self-contained HTML report (or JSON). The report page has an English
 covering overview trends, a filterable commit list (with a real diff detail drawer),
 contributors, file heat, file coupling analysis, and a commit-keyword cloud.
 
+## Install
+
+Download a pre-built binary from GitHub Releases:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ropean/digit/main/install.sh | bash
+```
+
+Pin a specific version:
+
+```bash
+DIGIT_VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/ropean/digit/main/install.sh | bash
+```
+
 ## Build
 
 ```bash
@@ -21,6 +35,19 @@ requires that directory to exist at compile time — a fresh clone running `go b
 .` directly will fail with `pattern web/dist: no matching files found`, which is
 expected; just run `npm run build-web` once). Frontend changes likewise need a
 `npm run build-web` rerun before `go build` picks up the new output.
+
+## Release
+
+Pushing a tag triggers the GitHub Actions release workflow (6 platforms: linux/darwin/windows × amd64/arm64):
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow builds the frontend once, then cross-compiles the CLI for each
+platform and publishes the binaries plus a `checksums.txt` to the GitHub
+release. It can also be run manually via `workflow_dispatch` with a `tag` input.
 
 ## Usage
 
