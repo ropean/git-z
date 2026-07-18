@@ -1,4 +1,13 @@
+// Date-only strings (e.g. heatmap cell keys) have no time component, so
+// `new Date(...)` parses them as UTC midnight per spec — reading them back
+// with local getters (getFullYear/getMonth/getDate) can then roll the
+// result back a day for any viewer west of UTC. They're already calendar
+// dates, not instants, so just pass them through instead of round-tripping
+// through Date.
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export function formatDate(iso: string): string {
+  if (DATE_ONLY_RE.test(iso)) return iso;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

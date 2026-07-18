@@ -160,7 +160,7 @@ button, input, select {
 /* Fast custom tooltip (see components/Tooltip.tsx) replacing native `title`
    attributes, which show only after a long, unthemed OS-level delay. */
 .tooltip-bubble {
-  position: fixed; z-index: 60; max-width: 320px; padding: 6px 10px; border-radius: 6px;
+  position: fixed; z-index: 60; width: max-content; max-width: 320px; padding: 6px 10px; border-radius: 6px;
   background: var(--text-primary); color: var(--surface-1); border: 1px solid var(--border-strong);
   box-shadow: var(--shadow); font-size: 12px; line-height: 1.4; white-space: pre-line;
   word-break: break-word; pointer-events: none; transition: opacity 0.08s ease;
