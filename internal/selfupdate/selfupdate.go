@@ -137,6 +137,21 @@ func replaceBinaryWindows(newPath, exe string) error {
 	return nil
 }
 
+// CleanupOldBinary removes a leftover "<exe>.old" file from a previous
+// upgrade, if one is present. Meant to be called once at startup: by the
+// time a fresh process runs, whatever earlier process held the old exe
+// open has necessarily exited, so this delete is no longer racing that
+// process the way the best-effort one inside replaceBinaryWindows is.
+// Best-effort — no-op (and no error) if the file doesn't exist or still
+// can't be removed.
+func CleanupOldBinary() {
+	exe, err := os.Executable()
+	if err != nil {
+		return
+	}
+	os.Remove(exe + ".old")
+}
+
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {

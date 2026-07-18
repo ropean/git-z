@@ -20,6 +20,7 @@ import (
 	"github.com/ropean/git-z/internal/gitlog"
 	"github.com/ropean/git-z/internal/model"
 	"github.com/ropean/git-z/internal/render"
+	"github.com/ropean/git-z/internal/selfupdate"
 )
 
 // WebDist is the embedded frontend build (web/dist), injected by main().
@@ -68,6 +69,7 @@ func init() {
 
 // Execute runs the root command.
 func Execute() error {
+	selfupdate.CleanupOldBinary()
 	return rootCmd.Execute()
 }
 
