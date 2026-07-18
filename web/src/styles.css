@@ -117,7 +117,7 @@ button, input, select {
   min-width: 0;
 }
 .header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.logo-mark { color: var(--accent); font-size: 18px; font-weight: 700; flex-shrink: 0; }
+.logo-mark { color: var(--accent); flex-shrink: 0; }
 .repo-name { font-weight: 600; font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .header-right { display: flex; align-items: center; gap: 10px; }
 .search-input {
