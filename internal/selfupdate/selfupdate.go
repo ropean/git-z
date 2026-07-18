@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const repo = "ropean/digit"
+const repo = "ropean/git-z"
 
 // Set at build time via -ldflags "-X ...selfupdate.Version=v1.0.0".
 var Version = "dev"
@@ -51,7 +51,7 @@ func IsNewer(remote string) bool {
 
 // AssetName returns the expected release asset name for the current platform.
 func AssetName() string {
-	name := fmt.Sprintf("digit-%s-%s", runtime.GOOS, runtime.GOARCH)
+	name := fmt.Sprintf("gitz-%s-%s", runtime.GOOS, runtime.GOARCH)
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
@@ -73,7 +73,7 @@ func DownloadAsset(tag string) (string, error) {
 		return "", fmt.Errorf("download returned %d (tag=%s, asset=%s)", resp.StatusCode, tag, asset)
 	}
 
-	tmp, err := os.CreateTemp("", "digit-*")
+	tmp, err := os.CreateTemp("", "gitz-*")
 	if err != nil {
 		return "", err
 	}
@@ -98,11 +98,58 @@ func ReplaceBinary(newPath string) error {
 		return err
 	}
 
+	if runtime.GOOS == "windows" {
+		return replaceBinaryWindows(newPath, exe)
+	}
+
 	// Rename is atomic on the same filesystem; fall back to copy if needed.
 	if err := os.Rename(newPath, exe); err != nil {
 		return copyFile(newPath, exe)
 	}
 	return nil
+}
+
+// replaceBinaryWindows swaps in the new binary without ever opening the
+// running exe for writing. Windows' loader keeps the running exe open with
+// FILE_SHARE_DELETE, so it can be renamed or deleted while running — but not
+// opened for write, which is what a direct overwrite (or the Unix-style
+// rename-then-copy-fallback) would require and why that approach reliably
+// fails here with "the process cannot access the file".
+func replaceBinaryWindows(newPath, exe string) error {
+	old := exe + ".old"
+	os.Remove(old) // best-effort: clear a leftover from a previous update
+
+	if err := os.Rename(exe, old); err != nil {
+		return fmt.Errorf("move running binary aside: %w", err)
+	}
+
+	// exe no longer exists at this path now, so writing to it is a plain
+	// file create/write, not a write to the (still-running) old binary —
+	// safe to fall back to copyFile if newPath is on a different volume
+	// (os.Rename doesn't cross drives on Windows).
+	if err := os.Rename(newPath, exe); err != nil {
+		if cerr := copyFile(newPath, exe); cerr != nil {
+			os.Rename(old, exe) // restore on failure
+			return fmt.Errorf("move new binary into place: %w", cerr)
+		}
+	}
+	os.Remove(old) // best-effort: may still be locked until this process exits
+	return nil
+}
+
+// CleanupOldBinary removes a leftover "<exe>.old" file from a previous
+// upgrade, if one is present. Meant to be called once at startup: by the
+// time a fresh process runs, whatever earlier process held the old exe
+// open has necessarily exited, so this delete is no longer racing that
+// process the way the best-effort one inside replaceBinaryWindows is.
+// Best-effort — no-op (and no error) if the file doesn't exist or still
+// can't be removed.
+func CleanupOldBinary() {
+	exe, err := os.Executable()
+	if err != nil {
+		return
+	}
+	os.Remove(exe + ".old")
 }
 
 func copyFile(src, dst string) error {

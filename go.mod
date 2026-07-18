@@ -1,4 +1,4 @@
-module github.com/ropean/digit
+module github.com/ropean/git-z
 
 go 1.24.7
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ropean/digit/cmd"
+	"github.com/ropean/git-z/cmd"
 )
 
 //go:embed web/dist

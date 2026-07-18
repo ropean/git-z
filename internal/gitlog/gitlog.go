@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ropean/digit/internal/model"
+	"github.com/ropean/git-z/internal/model"
 )
 
 // headerMarker/fieldSep are control characters that never appear in commit

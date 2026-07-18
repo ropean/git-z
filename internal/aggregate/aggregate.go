@@ -8,7 +8,7 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 
-	"github.com/ropean/digit/internal/model"
+	"github.com/ropean/git-z/internal/model"
 )
 
 // PathFilter narrows a commit's file list down to matching paths.
