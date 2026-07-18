@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Installs a pre-built digit binary from GitHub Releases.
+# Installs a pre-built gitz binary from GitHub Releases.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/ropean/digit/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ropean/git-z/main/install.sh | bash
 #
 # Pin a version (tag or "latest"):
-#   DIGIT_VERSION=v1.0.0 curl -fsSL ... | bash
+#   GITZ_VERSION=v1.0.0 curl -fsSL ... | bash
 
-REPO="ropean/digit"
-BINARY="digit"
+REPO="ropean/git-z"
+BINARY="gitz"
 DEFAULT_INSTALL_DIR="${HOME}/.local/bin"
-VERSION="${DIGIT_VERSION:-latest}"
+VERSION="${GITZ_VERSION:-latest}"
 
 detect_platform() {
   local os arch

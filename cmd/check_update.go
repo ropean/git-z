@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ropean/digit/internal/selfupdate"
+	"github.com/ropean/git-z/internal/selfupdate"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +21,7 @@ var checkUpdateCmd = &cobra.Command{
 
 		if selfupdate.IsNewer(rel.TagName) {
 			fmt.Fprintf(os.Stderr, "New version available: %s\n", rel.TagName)
-			fmt.Fprintf(os.Stderr, "Run `digit upgrade` to update\n")
+			fmt.Fprintf(os.Stderr, "Run `gitz upgrade` to update\n")
 			fmt.Fprintf(os.Stderr, "Release: %s\n", rel.HTMLURL)
 		} else {
 			fmt.Fprintln(os.Stderr, "Already up to date")

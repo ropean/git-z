@@ -1,12 +1,12 @@
 {
-  "name": "digit",
+  "name": "git-z",
   "private": true,
   "version": "0.1.0",
   "scripts": {
     "build": "npm run build-web && npm run build-cli",
     "build-web": "cd web && pnpm install && pnpm run build",
-    "build-cli": "go build .",
+    "build-cli": "go build -o gitz .",
     "dev": "cd web && pnpm run dev",
-    "clean": "node -e \"require('fs').rmSync('digit',{force:true});require('fs').rmSync('digit.exe',{force:true})\""
+    "clean": "node -e \"require('fs').rmSync('gitz',{force:true});require('fs').rmSync('gitz.exe',{force:true})\""
   }
 }

@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/ropean/digit/internal/selfupdate"
+	"github.com/ropean/git-z/internal/selfupdate"
 	"github.com/spf13/cobra"
 )
 

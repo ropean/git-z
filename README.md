@@ -1,4 +1,4 @@
-# digit
+# git-z
 
 A git history visualization CLI: analyzes a local repository's commit history and
 generates a self-contained HTML report (or JSON). The report page has an English UI
@@ -12,19 +12,19 @@ Download a pre-built binary from GitHub Releases.
 macOS, Linux, WSL:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ropean/digit/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ropean/git-z/main/install.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/ropean/digit/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/ropean/git-z/main/install.ps1 | iex
 ```
 
 Windows CMD:
 
 ```bat
-curl -fsSL https://raw.githubusercontent.com/ropean/digit/main/install.cmd -o install.cmd && install.cmd && del install.cmd
+curl -fsSL https://raw.githubusercontent.com/ropean/git-z/main/install.cmd -o install.cmd && install.cmd && del install.cmd
 ```
 
 All three install to `~/.local/bin` (i.e. `%USERPROFILE%\.local\bin` on Windows)
@@ -33,18 +33,18 @@ and pick the binary matching your CPU architecture (amd64/arm64).
 Pin a specific version:
 
 ```bash
-DIGIT_VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/ropean/digit/main/install.sh | bash
+GITZ_VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/ropean/git-z/main/install.sh | bash
 ```
 
 ```powershell
-$env:DIGIT_VERSION = "v0.1.0"; irm https://raw.githubusercontent.com/ropean/digit/main/install.ps1 | iex
+$env:GITZ_VERSION = "v0.1.0"; irm https://raw.githubusercontent.com/ropean/git-z/main/install.ps1 | iex
 ```
 
 ## Build
 
 ```bash
 npm run build        # equivalent to build-web then build-cli
-./digit --help        # produces digit.exe on Windows
+./gitz --help          # produces gitz.exe on Windows
 ```
 
 The frontend (`web/`) is Vite + React + ECharts, bundled into a single
@@ -73,27 +73,27 @@ release. It can also be run manually via `workflow_dispatch` with a `tag` input.
 ## Usage
 
 ```bash
-digit .                                   # analyze the repo in the current directory; writes to
-                                           # ~/Downloads/digit-reports/<repo-name>-<hash>/report-<timestamp>.html
-digit /path/to/repo -o report.html
-digit . --since 2026-01-01 --until 2026-07-01
-digit . --author "Wei,someone@example.com"
-digit . --exclude "node_modules/**,dist/**"
-digit . --branch main
-digit . --all-branches
-digit . --max-commits 5000
-digit . --open
-digit . --format json --output data.json
-digit version
-digit check-update
-digit upgrade [--version v0.1.0]
+gitz .                                     # analyze the repo in the current directory; writes to
+                                           # ~/Downloads/gitz-reports/<repo-name>-<hash>/report-<timestamp>.html
+gitz /path/to/repo -o report.html
+gitz . --since 2026-01-01 --until 2026-07-01
+gitz . --author "Wei,someone@example.com"
+gitz . --exclude "node_modules/**,dist/**"
+gitz . --branch main
+gitz . --all-branches
+gitz . --max-commits 5000
+gitz . --open
+gitz . --format json --output data.json
+gitz version
+gitz check-update
+gitz upgrade [--version v0.1.0]
 ```
 
-See `digit --help` for the full flag list.
+See `gitz --help` for the full flag list.
 
-`digit version` prints the running build's version (embedded at release-build
-time; local `go build` / `npm run build` gives `dev`). `digit check-update`
-compares it against the latest GitHub release. `digit upgrade` downloads the
+`gitz version` prints the running build's version (embedded at release-build
+time; local `go build` / `npm run build` gives `dev`). `gitz check-update`
+compares it against the latest GitHub release. `gitz upgrade` downloads the
 matching platform asset and replaces the running binary in place — same
 release assets and the same default install location (`~/.local/bin` on every
 platform, e.g. `C:\Users\<you>\.local\bin` on Windows) as the install
@@ -130,10 +130,13 @@ web/dist/            frontend build output (not committed; run npm run build-web
 
 The top of the report also has quick date-range presets, a custom-range picker, a
 commit-density histogram with a dual-handle brush selector, and a global search box.
+The bottom of the report has a footer crediting git-z and linking back to this
+repository.
 
 ## Known gaps
 
-Not implemented this round: incremental analysis caching, a `.digit.yaml` config
+Not implemented this round: incremental analysis caching, a `.gitz.yaml` config
 file, or scheduled CI reports. The design mock's "repo switcher / compare mode"
 was intentionally skipped — that existed only to demo two fake mock repos side by
 side, and doesn't fit this tool's single-repo-per-report model.
+</content>

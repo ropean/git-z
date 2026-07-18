@@ -112,7 +112,7 @@ export function CommitDrawer({ commit, allCommits, remoteUrl, openFile, onToggle
         </div>
         {!hasDiff && (
           <div className="diff-note">
-            Full diff content wasn't captured for this report — rerun digit with --diff-content to see line-by-line diffs here.
+            Full diff content wasn't captured for this report — rerun gitz with --diff-content to see line-by-line diffs here.
           </div>
         )}
       </div>

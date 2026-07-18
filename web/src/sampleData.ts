@@ -21,7 +21,7 @@ const commitDays = Array.from({ length: 260 }, (_, i) => {
 export const sampleData: RepoData = {
   generatedAt: new Date().toISOString(),
   repoPath: "/example/repo",
-  remoteUrl: "https://github.com/ropean/digit",
+  remoteUrl: "https://github.com/ropean/git-z",
   currentLines: 18420,
   branches: ["main", "feature/x"],
   tags: ["v1.0.0"],

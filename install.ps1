@@ -1,18 +1,18 @@
 #!/usr/bin/env pwsh
-# Installs a pre-built digit binary from GitHub Releases (native Windows).
+# Installs a pre-built gitz binary from GitHub Releases (native Windows).
 #
 # Usage:
-#   irm https://raw.githubusercontent.com/ropean/digit/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/ropean/git-z/main/install.ps1 | iex
 #
 # Pin a version (tag or "latest"):
-#   $env:DIGIT_VERSION = "v1.0.0"; irm https://raw.githubusercontent.com/ropean/digit/main/install.ps1 | iex
+#   $env:GITZ_VERSION = "v1.0.0"; irm https://raw.githubusercontent.com/ropean/git-z/main/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
-$Repo   = "ropean/digit"
-$Binary = "digit"
+$Repo   = "ropean/git-z"
+$Binary = "gitz"
 
-$Version    = if ($env:DIGIT_VERSION) { $env:DIGIT_VERSION } else { "latest" }
+$Version    = if ($env:GITZ_VERSION) { $env:GITZ_VERSION } else { "latest" }
 $InstallDir = if ($env:INSTALL_DIR) { $env:INSTALL_DIR } else { Join-Path $HOME ".local\bin" }
 
 function Get-Arch {

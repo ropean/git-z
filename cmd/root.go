@@ -16,10 +16,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ropean/digit/internal/aggregate"
-	"github.com/ropean/digit/internal/gitlog"
-	"github.com/ropean/digit/internal/model"
-	"github.com/ropean/digit/internal/render"
+	"github.com/ropean/git-z/internal/aggregate"
+	"github.com/ropean/git-z/internal/gitlog"
+	"github.com/ropean/git-z/internal/model"
+	"github.com/ropean/git-z/internal/render"
 )
 
 // WebDist is the embedded frontend build (web/dist), injected by main().
@@ -42,7 +42,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "digit <repo-path>",
+	Use:   "gitz <repo-path>",
 	Short: "Generate a visual report of a git repository's history",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runGitViz,
@@ -50,7 +50,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	flags := rootCmd.Flags()
-	flags.StringVarP(&flagOutput, "output", "o", "", "output file path (defaults to <Downloads>/digit-reports/<repo-name>-<hash>/report-<timestamp>.html)")
+	flags.StringVarP(&flagOutput, "output", "o", "", "output file path (defaults to <Downloads>/gitz-reports/<repo-name>-<hash>/report-<timestamp>.html)")
 	flags.StringVar(&flagSince, "since", "", "start date (inclusive); accepts an absolute date or a relative value like 30d")
 	flags.StringVar(&flagUntil, "until", "", "end date (inclusive)")
 	flags.StringVar(&flagAuthor, "author", "", "filter by author name/email, comma-separated, multiple allowed")
@@ -227,7 +227,7 @@ func runGitViz(c *cobra.Command, args []string) error {
 }
 
 // defaultOutputPath builds the report path used when --output isn't given:
-// <Downloads>/digit-reports/<repo-name>-<hash>/report-<MMDDYY-HHmm>.<ext>.
+// <Downloads>/gitz-reports/<repo-name>-<hash>/report-<MMDDYY-HHmm>.<ext>.
 // The hash is derived from the repo's absolute path so the same repo
 // always lands in the same subfolder even if its basename collides with
 // another repo elsewhere on disk. The timestamp avoids colons so the
@@ -244,7 +244,7 @@ func defaultOutputPath(absRepoPath, format string) (string, error) {
 	}
 	dirName := fmt.Sprintf("%s-%s", repoBase, shortHash(absRepoPath))
 	fileName := fmt.Sprintf("report-%s.%s", time.Now().Format("010206-1504"), ext)
-	return filepath.Join(downloads, "digit-reports", dirName, fileName), nil
+	return filepath.Join(downloads, "gitz-reports", dirName, fileName), nil
 }
 
 func userDownloadsDir() (string, error) {

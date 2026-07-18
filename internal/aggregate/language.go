@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ropean/digit/internal/gitlog"
-	"github.com/ropean/digit/internal/model"
+	"github.com/ropean/git-z/internal/gitlog"
+	"github.com/ropean/git-z/internal/model"
 )
 
 var extensionLanguages = map[string]string{

@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ropean/digit/internal/model"
+	"github.com/ropean/git-z/internal/model"
 )
 
 // dataMarker is a placeholder literal baked into web/index.html at build

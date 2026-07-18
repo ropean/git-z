@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 env:
-  BINARY_NAME: digit
+  BINARY_NAME: gitz
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
@@ -85,7 +85,7 @@ jobs:
           if [ "$GOOS" = "windows" ]; then ext=".exe"; fi
           version="${{ env.RELEASE_TAG }}"
           go build \
-            -ldflags="-s -w -X github.com/ropean/digit/internal/selfupdate.Version=${version}" \
+            -ldflags="-s -w -X github.com/ropean/git-z/internal/selfupdate.Version=${version}" \
             -o "${{ env.BINARY_NAME }}-${GOOS}-${GOARCH}${ext}" .
 
       - uses: actions/upload-artifact@v6

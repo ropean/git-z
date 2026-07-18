@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const repo = "ropean/digit"
+const repo = "ropean/git-z"
 
 // Set at build time via -ldflags "-X ...selfupdate.Version=v1.0.0".
 var Version = "dev"
@@ -51,7 +51,7 @@ func IsNewer(remote string) bool {
 
 // AssetName returns the expected release asset name for the current platform.
 func AssetName() string {
-	name := fmt.Sprintf("digit-%s-%s", runtime.GOOS, runtime.GOARCH)
+	name := fmt.Sprintf("gitz-%s-%s", runtime.GOOS, runtime.GOARCH)
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
@@ -73,7 +73,7 @@ func DownloadAsset(tag string) (string, error) {
 		return "", fmt.Errorf("download returned %d (tag=%s, asset=%s)", resp.StatusCode, tag, asset)
 	}
 
-	tmp, err := os.CreateTemp("", "digit-*")
+	tmp, err := os.CreateTemp("", "gitz-*")
 	if err != nil {
 		return "", err
 	}
