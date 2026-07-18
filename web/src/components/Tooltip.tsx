@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 // Custom replacement for the native `title` attribute tooltip, which on most
@@ -9,12 +9,36 @@ import { createPortal } from "react-dom";
 const SHOW_DELAY_MS = 60;
 const MARGIN = 8;
 
+type Placement = { top: number; left: number; flipY: boolean };
+
 export function TooltipHost() {
   const [text, setText] = useState<string | null>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, flip: false });
+  const [pos, setPos] = useState<Placement>({ top: 0, left: 0, flipY: false });
   const targetRef = useRef<Element | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
   const bubbleRef = useRef<HTMLDivElement>(null);
+
+  // Flips above/below the trigger depending on which side has room, and
+  // shifts left/right so the bubble never runs past the viewport edge —
+  // both re-derived from the trigger's live position on every placement,
+  // so resizing the window or scrolling a different area still lands
+  // correctly next time a tooltip opens.
+  const computePlacement = (el: Element): Placement => {
+    const rect = el.getBoundingClientRect();
+    const bubble = bubbleRef.current;
+    const bubbleWidth = bubble?.offsetWidth ?? 0;
+    const bubbleHeight = bubble?.offsetHeight ?? 32;
+    const flipY = rect.top - bubbleHeight - MARGIN < 0;
+
+    const half = bubbleWidth / 2;
+    const minCenter = MARGIN + half;
+    const maxCenter = window.innerWidth - MARGIN - half;
+    const idealCenter = rect.left + rect.width / 2;
+    const left =
+      maxCenter < minCenter ? window.innerWidth / 2 : Math.min(Math.max(idealCenter, minCenter), maxCenter);
+
+    return { top: flipY ? rect.bottom + MARGIN : rect.top - MARGIN, left, flipY };
+  };
 
   useEffect(() => {
     const clearTimer = () => {
@@ -22,18 +46,6 @@ export function TooltipHost() {
         window.clearTimeout(timerRef.current);
         timerRef.current = undefined;
       }
-    };
-
-    const place = (el: Element) => {
-      const rect = el.getBoundingClientRect();
-      const bubble = bubbleRef.current;
-      const bubbleHeight = bubble?.offsetHeight ?? 32;
-      const flip = rect.top - bubbleHeight - MARGIN < 0;
-      setPos({
-        top: flip ? rect.bottom + MARGIN : rect.top - MARGIN,
-        left: Math.min(Math.max(rect.left + rect.width / 2, 60), window.innerWidth - 60),
-        flip,
-      });
     };
 
     const hide = () => {
@@ -51,7 +63,7 @@ export function TooltipHost() {
       targetRef.current = el;
       timerRef.current = window.setTimeout(() => {
         if (targetRef.current !== el) return;
-        place(el);
+        setPos(computePlacement(el));
         setText(tip);
       }, SHOW_DELAY_MS);
     };
@@ -83,17 +95,12 @@ export function TooltipHost() {
     };
   }, []);
 
-  useEffect(() => {
+  // Re-measure synchronously (before paint) once the bubble has real
+  // content and a real size, so the flip/shift decision above is exact
+  // instead of based on the SHOW_DELAY_MS-old placement's fallback size.
+  useLayoutEffect(() => {
     if (text != null && targetRef.current) {
-      // Re-measure once the bubble has real content/size.
-      const rect = targetRef.current.getBoundingClientRect();
-      const bubbleHeight = bubbleRef.current?.offsetHeight ?? 32;
-      const flip = rect.top - bubbleHeight - MARGIN < 0;
-      setPos({
-        top: flip ? rect.bottom + MARGIN : rect.top - MARGIN,
-        left: Math.min(Math.max(rect.left + rect.width / 2, 60), window.innerWidth - 60),
-        flip,
-      });
+      setPos(computePlacement(targetRef.current));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
@@ -105,7 +112,7 @@ export function TooltipHost() {
       style={{
         top: pos.top,
         left: pos.left,
-        transform: `translate(-50%, ${pos.flip ? "0" : "-100%"})`,
+        transform: `translate(-50%, ${pos.flipY ? "0" : "-100%"})`,
         opacity: text ? 1 : 0,
         visibility: text ? "visible" : "hidden",
       }}
