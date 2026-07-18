@@ -98,10 +98,42 @@ func ReplaceBinary(newPath string) error {
 		return err
 	}
 
+	if runtime.GOOS == "windows" {
+		return replaceBinaryWindows(newPath, exe)
+	}
+
 	// Rename is atomic on the same filesystem; fall back to copy if needed.
 	if err := os.Rename(newPath, exe); err != nil {
 		return copyFile(newPath, exe)
 	}
+	return nil
+}
+
+// replaceBinaryWindows swaps in the new binary without ever opening the
+// running exe for writing. Windows' loader keeps the running exe open with
+// FILE_SHARE_DELETE, so it can be renamed or deleted while running — but not
+// opened for write, which is what a direct overwrite (or the Unix-style
+// rename-then-copy-fallback) would require and why that approach reliably
+// fails here with "the process cannot access the file".
+func replaceBinaryWindows(newPath, exe string) error {
+	old := exe + ".old"
+	os.Remove(old) // best-effort: clear a leftover from a previous update
+
+	if err := os.Rename(exe, old); err != nil {
+		return fmt.Errorf("move running binary aside: %w", err)
+	}
+
+	// exe no longer exists at this path now, so writing to it is a plain
+	// file create/write, not a write to the (still-running) old binary —
+	// safe to fall back to copyFile if newPath is on a different volume
+	// (os.Rename doesn't cross drives on Windows).
+	if err := os.Rename(newPath, exe); err != nil {
+		if cerr := copyFile(newPath, exe); cerr != nil {
+			os.Rename(old, exe) // restore on failure
+			return fmt.Errorf("move new binary into place: %w", cerr)
+		}
+	}
+	os.Remove(old) // best-effort: may still be locked until this process exits
 	return nil
 }
 
