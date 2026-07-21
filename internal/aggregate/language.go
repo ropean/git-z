@@ -28,6 +28,9 @@ var extensionLanguages = map[string]string{
 	".htm":        "HTML",
 	".vue":        "Vue",
 	".svelte":     "Svelte",
+	".astro":      "Astro",
+	".mts":        "TypeScript",
+	".cts":        "TypeScript",
 	".md":         "Markdown",
 	".mdx":        "Markdown",
 	".rst":        "reStructuredText",
@@ -121,6 +124,22 @@ var extensionLanguages = map[string]string{
 	".cmake":      "CMake",
 	".xslt":       "XSLT",
 	".xsl":        "XSLT",
+	".styl":       "Stylus",
+	".pcss":       "PostCSS",
+	".postcss":    "PostCSS",
+	".prisma":     "Prisma",
+	".liquid":     "Liquid",
+	".ejs":        "EJS",
+	".njk":        "Nunjucks",
+	".erb":        "ERB",
+	".nix":        "Nix",
+	".bicep":      "Bicep",
+	".cabal":      "Haskell",
+	".txt":        "Text",
+	".pp":         "Puppet",
+	".jinja":      "Jinja",
+	".jinja2":     "Jinja",
+	".j2":         "Jinja",
 }
 
 // ignoredExtensions are binary assets and generated/lock artifacts that
@@ -159,7 +178,10 @@ var ignoredFilenames = map[string]bool{
 	"yarn.lock": true, "cargo.lock": true, "gemfile.lock": true, "composer.lock": true,
 	".gitignore": true, ".gitattributes": true, ".dockerignore": true, ".npmrc": true,
 	".editorconfig": true, ".prettierignore": true, ".eslintignore": true, ".gitkeep": true,
-	".ds_store": true,
+	".ds_store":   true,
+	".prettierrc": true, ".babelrc": true, ".nvmrc": true, ".browserslistrc": true,
+	".stylelintrc": true, ".huskyrc": true, ".yarnrc": true, ".npmignore": true,
+	".flowconfig": true, ".cfignore": true, ".nixignore": true, ".vercelignore": true,
 }
 
 func isIgnoredPath(base string) bool {
