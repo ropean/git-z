@@ -519,6 +519,7 @@ export function computeReleaseStats(tags: TagStat[], commits: Commit[]): Release
 const EXTENSION_LANGUAGES: Record<string, string> = {
   go: "Go", ts: "TypeScript", tsx: "TypeScript", js: "JavaScript", jsx: "JavaScript", mjs: "JavaScript", cjs: "JavaScript",
   css: "CSS", scss: "SCSS", sass: "Sass", less: "Less", html: "HTML", htm: "HTML", vue: "Vue", svelte: "Svelte",
+  astro: "Astro", mts: "TypeScript", cts: "TypeScript",
   md: "Markdown", mdx: "Markdown", rst: "reStructuredText", adoc: "AsciiDoc", tex: "TeX",
   json: "JSON", yml: "YAML", yaml: "YAML", toml: "TOML", ini: "INI", cfg: "INI", properties: "Properties", csv: "CSV",
   xml: "XML", graphql: "GraphQL", gql: "GraphQL", proto: "Protocol Buffers", tf: "HCL", hcl: "HCL",
@@ -532,6 +533,8 @@ const EXTENSION_LANGUAGES: Record<string, string> = {
   vhd: "VHDL", vhdl: "VHDL", v: "Verilog", matlab: "MATLAB", ipynb: "Jupyter Notebook", coffee: "CoffeeScript",
   pug: "Pug", hbs: "Handlebars", twig: "Twig", vim: "Vim Script", el: "Emacs Lisp", diff: "Diff", patch: "Diff", cmake: "CMake",
   xslt: "XSLT", xsl: "XSLT",
+  styl: "Stylus", pcss: "PostCSS", postcss: "PostCSS", prisma: "Prisma", liquid: "Liquid", ejs: "EJS", njk: "Nunjucks",
+  erb: "ERB", nix: "Nix", bicep: "Bicep", cabal: "Haskell", txt: "Text", pp: "Puppet", jinja: "Jinja", jinja2: "Jinja", j2: "Jinja",
 };
 
 const FILENAME_LANGUAGES: Record<string, string> = {
@@ -556,6 +559,8 @@ const IGNORED_FILENAMES = new Set([
   "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "cargo.lock", "gemfile.lock", "composer.lock",
   ".gitignore", ".gitattributes", ".dockerignore", ".npmrc", ".editorconfig", ".prettierignore", ".eslintignore", ".gitkeep",
   ".ds_store",
+  ".prettierrc", ".babelrc", ".nvmrc", ".browserslistrc", ".stylelintrc", ".huskyrc", ".yarnrc", ".npmignore",
+  ".flowconfig", ".cfignore", ".nixignore", ".vercelignore",
 ]);
 
 function isIgnoredPath(base: string): boolean {

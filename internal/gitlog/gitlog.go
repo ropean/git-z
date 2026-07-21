@@ -249,6 +249,14 @@ func Count(opts Options) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(out))
 }
 
+// IsGitRepo reports whether repoPath is inside a git working tree. Used to
+// give a clean, single-line error up front instead of letting a "not a git
+// repository" failure surface later wrapped in a raw git-command dump.
+func IsGitRepo(repoPath string) bool {
+	out, err := runGit(repoPath, "rev-parse", "--is-inside-work-tree")
+	return err == nil && strings.TrimSpace(out) == "true"
+}
+
 // CurrentBranch returns the checked-out branch name (or "HEAD" if detached).
 func CurrentBranch(repoPath string) (string, error) {
 	out, err := runGit(repoPath, "rev-parse", "--abbrev-ref", "HEAD")

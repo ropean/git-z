@@ -79,6 +79,9 @@ func runGitViz(c *cobra.Command, args []string) error {
 	if err != nil || !info.IsDir() {
 		return fmt.Errorf("repo path doesn't exist or isn't a directory: %s", repoPath)
 	}
+	if !gitlog.IsGitRepo(repoPath) {
+		return fmt.Errorf("%s is not a git repository (or any of its parent directories)", repoPath)
+	}
 	if flagFormat != "html" && flagFormat != "json" {
 		return fmt.Errorf("--format only supports html or json, got: %s", flagFormat)
 	}
@@ -95,7 +98,7 @@ func runGitViz(c *cobra.Command, args []string) error {
 	if branch == "" && !flagAllBranches {
 		branch, err = gitlog.CurrentBranch(repoPath)
 		if err != nil {
-			return fmt.Errorf("couldn't read the current branch (is %s a git repo?): %w", repoPath, err)
+			return fmt.Errorf("couldn't read the current branch: %w", err)
 		}
 	}
 
