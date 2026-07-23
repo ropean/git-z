@@ -45,6 +45,33 @@ var extensionLanguages = map[string]string{
 	".properties": "Properties",
 	".csv":        "CSV",
 	".xml":        "XML",
+	// XML-based .NET / MSBuild / Visual Studio project and metadata files —
+	// GitHub's language bar counts all of these as XML rather than "Other".
+	".resx":       "XML",
+	".xsd":        "XML",
+	".config":     "XML",
+	".csproj":     "XML",
+	".vbproj":     "XML",
+	".fsproj":     "XML",
+	".vcxproj":    "XML",
+	".props":      "XML",
+	".targets":    "XML",
+	".nuspec":     "XML",
+	".settings":   "XML",
+	".datasource": "XML",
+	".xsc":        "XML",
+	".xss":        "XML",
+	".xsx":        "XML",
+	".svcmap":     "XML",
+	".svcinfo":    "XML",
+	".vspscc":     "XML",
+	".wsdl":       "XML",
+	".manifest":   "XML",
+	".plist":      "XML",
+	".storyboard": "XML",
+	".xib":        "XML",
+	".sln":        "Visual Studio Solution",
+	".mdc":        "Markdown",
 	".graphql":    "GraphQL",
 	".gql":        "GraphQL",
 	".proto":      "Protocol Buffers",
@@ -163,6 +190,17 @@ var ignoredExtensions = map[string]bool{
 	// Binaries / data blobs
 	".exe": true, ".dll": true, ".so": true, ".dylib": true, ".bin": true,
 	".dat": true, ".sqlite": true, ".sqlite3": true, ".db": true, ".pdb": true,
+	".lib": true, ".a": true, ".o": true, ".obj": true, ".class": true,
+	".jar": true, ".pyc": true, ".pyo": true,
+	// Database files (SQL Server Compact, Access)
+	".sdf": true, ".accdb": true, ".mdb": true,
+	// .NET / build packages (zip-based archives)
+	".nupkg": true, ".snupkg": true, ".ispac": true,
+	// Tableau packaged workbook (zip-based)
+	".twbx": true,
+	// Certificates / keys / signatures
+	".pfx": true, ".p12": true, ".cer": true, ".crt": true, ".der": true,
+	".p7s": true, ".p7b": true,
 	// Documents
 	".pdf": true, ".doc": true, ".docx": true, ".xls": true, ".xlsx": true,
 	".ppt": true, ".pptx": true,
@@ -189,6 +227,10 @@ func isIgnoredPath(base string) bool {
 		return true
 	}
 	if strings.HasPrefix(base, ".env") {
+		return true
+	}
+	// macOS AppleDouble sidecar files (._Foo.cs) carry no source content.
+	if strings.HasPrefix(base, "._") {
 		return true
 	}
 	return ignoredExtensions[strings.ToLower(filepath.Ext(base))]
@@ -218,8 +260,17 @@ func ComputeLanguages(sizes []gitlog.TreeSize) []model.LanguageStat {
 		st.Files++
 	}
 
+	// The unrecognized-extension bucket ("Other") is pulled out of ranking so
+	// it never competes for a head slot — it is always folded into the single
+	// synthetic tail "Other" below, so the result carries at most one.
+	other := model.LanguageStat{Language: "Other"}
 	list := make([]model.LanguageStat, 0, len(totals))
 	for _, st := range totals {
+		if st.Language == "Other" {
+			other.Bytes += st.Bytes
+			other.Files += st.Files
+			continue
+		}
 		list = append(list, *st)
 	}
 	sort.Slice(list, func(i, j int) bool {
@@ -229,16 +280,19 @@ func ComputeLanguages(sizes []gitlog.TreeSize) []model.LanguageStat {
 		return list[i].Language < list[j].Language
 	})
 
-	if len(list) <= maxLanguages {
-		return list
+	// Reserve a slot for "Other" only when it will actually be shown.
+	head := list
+	if len(list) > maxLanguages-1 {
+		head = append([]model.LanguageStat{}, list[:maxLanguages-1]...)
+		for _, st := range list[maxLanguages-1:] {
+			other.Bytes += st.Bytes
+			other.Files += st.Files
+		}
 	}
-	head := append([]model.LanguageStat{}, list[:maxLanguages-1]...)
-	other := model.LanguageStat{Language: "Other"}
-	for _, st := range list[maxLanguages-1:] {
-		other.Bytes += st.Bytes
-		other.Files += st.Files
+	if other.Files > 0 {
+		return append(head, other)
 	}
-	return append(head, other)
+	return head
 }
 
 var filenameLanguages = map[string]string{
