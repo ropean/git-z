@@ -73,3 +73,47 @@ export function collectMatchPaths(node: TreeNode, query: string): Set<string> {
   for (const c of node.children) visit(c);
   return keep;
 }
+
+// Renders the full tree as plain text in the classic `tree` layout
+// (├── / └── connectors, │ guides), folders suffixed with "/". Every node
+// is included regardless of the UI's expand/filter state.
+export function formatTreeText(root: TreeNode, rootLabel = "."): string {
+  const lines: string[] = [rootLabel];
+  const walk = (n: TreeNode, prefix: string) => {
+    n.children.forEach((c, i) => {
+      const last = i === n.children.length - 1;
+      lines.push(`${prefix}${last ? "└── " : "├── "}${c.name}${c.isFile ? "" : "/"}`);
+      if (!c.isFile) walk(c, prefix + (last ? "    " : "│   "));
+    });
+  };
+  walk(root, "");
+  return lines.join("\n") + "\n";
+}
+
+// Copies text to the clipboard; falls back to execCommand for contexts
+// (e.g. some file:// pages) where the async Clipboard API is unavailable.
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to legacy path
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
