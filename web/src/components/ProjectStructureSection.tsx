@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { buildTree, collectMatchPaths, countEntries, type TreeNode } from "../tree";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { buildTree, collectMatchPaths, copyText, countEntries, formatTreeText, type TreeNode } from "../tree";
 
 function collectAllFolderPaths(node: TreeNode): Set<string> {
   const out = new Set<string>();
@@ -22,6 +22,16 @@ export function ProjectStructureSection({ tree }: { tree: string[] }) {
 
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [filter, setFilter] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const copyTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copyTimer.current), []);
+
+  const copyStructure = async () => {
+    const ok = await copyText(formatTreeText(root));
+    setCopyState(ok ? "copied" : "failed");
+    window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(() => setCopyState("idle"), 1500);
+  };
 
   const filterActive = filter.trim().length > 0;
   const matchPaths = useMemo(() => (filterActive ? collectMatchPaths(root, filter.trim()) : null), [filterActive, root, filter]);
@@ -73,6 +83,14 @@ export function ProjectStructureSection({ tree }: { tree: string[] }) {
         />
         <button className="pager-btn" onClick={() => setExpanded(new Set(allFolderPaths))}>Expand all</button>
         <button className="pager-btn" onClick={() => setExpanded(new Set())}>Collapse all</button>
+        <button
+          className="pager-btn"
+          onClick={copyStructure}
+          disabled={root.children.length === 0}
+          title="Copy the full file structure as indented text"
+        >
+          {copyState === "copied" ? "Copied!" : copyState === "failed" ? "Copy failed" : "Copy structure"}
+        </button>
       </div>
       <div className="table-card tree-view">
         {root.children.length === 0 ? (
